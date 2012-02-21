@@ -1,6 +1,6 @@
 #ifndef BIFURCATE_MAP_H
 #define BIFURCATE_MAP_H
-
+#if 0
 #include "Decls.h"
 
 namespace bg
@@ -32,13 +32,13 @@ namespace bg
         int num_points;
         int positive_side_area;
         int negative_side_area;
-        vec3 points[0];
+        Vec3 points[0];
     };
     #pragma warning(pop)
 
     struct node
     {
-        int plane_index;
+        int Plane_index;
         int positive_child;
         int negative_child;
     };
@@ -49,7 +49,7 @@ namespace bg
         int no_caps;
         int no_front_caps;
         int num_primitives;
-        int plane_bits;
+        int Plane_bits;
         draw_element_buffer *element_buffer;
     };
     /*
@@ -63,11 +63,12 @@ namespace bg
         unsigned mShadowModelOffset;
         unsigned mSurfaceVerticesOffset;
         unsigned mSurfaceIndicesOffset;
-        unsigned mbg_planesOffset;
+        unsigned mbg_PlanesOffset;
         unsigned mNamesOffset;
         unsigned mShadowVerticesOffset;
         unsigned mShadowIndicesOffset;
     };
     */
 }
+#endif
 #endif

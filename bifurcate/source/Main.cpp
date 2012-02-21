@@ -7,6 +7,7 @@
 #include "Config.h"
 #include "Gfx.h"
 #include "Anim.h"
+#include "Mesh.h"
 
 int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, int showCmd)
 {
@@ -15,11 +16,12 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     UNUSED(cmdline);
     UNUSED(showCmd);
 
-    if (bg::gfx_initialize(instance, 1280, 720))
+    if (bg::GfxInitialize(instance, 1280, 720))
         return 1;
 
     //bx::load_map("z:/doom3data/maps/game/recycling1.proc");
-    bg::load_anim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");
+    bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");
+    bg::LoadMesh("z:/doom3data/models/md5/monsters/hellknight/hellknight.md5mesh");
 
     MSG msg;
 
@@ -28,11 +30,11 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
         TranslateMessage(&msg);
         DispatchMessage(&msg);
 
-        bg::gfx_begin_scene();
-        bg::gfx_end_scene();
+        bg::GfxBeginScene();
+        bg::GfxEndScene();
     }
 
-    bg::gfx_shutdown();
+    bg::GfxShutdown();
 
     return 0;
 }

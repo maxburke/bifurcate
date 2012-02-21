@@ -5,17 +5,17 @@
 
 namespace bx
 {
-    class parsed_string
+    class ParsedString
     {
     public:
-        parsed_string(const char *begin, const char *end)
+        ParsedString(const char *begin, const char *end)
             : mBegin(begin + 1),
-              mEnd(end + 1)
+              mEnd(end - 1)
         {
-            assert(*begin == '"' && *(end - 1)== '"');
+            assert(*begin == '"' && *(end - 1) == '"');
         }
 
-        bool valid() const
+        bool Valid() const
         {
             return mBegin != NULL && mEnd != NULL;
         }
@@ -31,13 +31,13 @@ namespace bx
     };
 
     template<typename T>
-    class parsed_number
+    class ParsedNumber
     {
         T mValue;
         bool mValid;
 
     public:
-        parsed_number(T value, bool valid)
+        ParsedNumber(T value, bool valid)
             : mValue(value),
               mValid(valid)
         {}
@@ -58,29 +58,29 @@ namespace bx
             return !(*this == rhs);
         }
 
-        bool valid() const
+        bool Valid() const
         {
             return mValid;
         }
     };
 
-    typedef parsed_number<int> parsed_int;
-    typedef parsed_number<float> parsed_float;
+    typedef ParsedNumber<int> ParsedInt;
+    typedef ParsedNumber<float> ParsedFloat;
 
-    class parser
+    class Parser
     {
         const char *mStreamBegin;
         const char *mStreamEnd;
         const char *mCursor;
 
     public:
-        parser(const char *begin, const char *end);
-        ~parser() {}
+        Parser(const char *begin, const char *end);
+        ~Parser() {}
 
-        bool expect_and_discard(const char *token);
-        parsed_int parse_int();
-        parsed_string parse_string();
-        parsed_float parse_float();
+        bool ExpectAndDiscard(const char *token);
+        ParsedInt ParseInt();
+        ParsedString ParseString();
+        ParsedFloat ParseFloat();
     };
 }
 

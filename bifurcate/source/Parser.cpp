@@ -122,50 +122,50 @@ namespace bx
         return *lhs == 0 || *rhs == 0;
     }
 
-    parser::parser(const char *begin, const char *end)
+    Parser::Parser(const char *begin, const char *end)
         : mStreamBegin(begin),
           mStreamEnd(end),
           mCursor(begin)
     {
     }
 
-    bool parser::expect_and_discard(const char *string)
+    bool Parser::ExpectAndDiscard(const char *string)
     {
         token t = next_token(mCursor, mStreamEnd);
         mCursor = t.mEnd;
         return string_equal(t.mBegin, string);
     }
 
-    parsed_int parser::parse_int()
+    ParsedInt Parser::ParseInt()
     {
         token t = next_token(mCursor, mStreamEnd);
         mCursor = t.mEnd;
 
         if (t.mTokenType == kTokenTypeNumber)
-            return parsed_int(strtol(t.mBegin, NULL, 0), true);
+            return ParsedInt(strtol(t.mBegin, NULL, 0), true);
 
-        return parsed_int(0, false);
+        return ParsedInt(0, false);
     }
 
-    parsed_string parser::parse_string()
+    ParsedString Parser::ParseString()
     {
         token t = next_token(mCursor, mStreamEnd);
         mCursor = t.mEnd;
 
         if (t.mTokenType == kTokenTypeString)
-            return parsed_string(t.mBegin, t.mEnd);
+            return ParsedString(t.mBegin, t.mEnd);
 
-        return parsed_string(NULL, NULL);
+        return ParsedString(NULL, NULL);
     }
 
-    parsed_float parser::parse_float()
+    ParsedFloat Parser::ParseFloat()
     {
         token t = next_token(mCursor, mStreamEnd);
         mCursor = t.mEnd;
 
         if (t.mTokenType == kTokenTypeNumber)
-            return parsed_float(static_cast<float>(strtod(t.mBegin, NULL)), true);
+            return ParsedFloat(static_cast<float>(strtod(t.mBegin, NULL)), true);
 
-        return parsed_float(0, false);
+        return ParsedFloat(0, false);
     }
 }

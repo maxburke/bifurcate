@@ -6,7 +6,7 @@
 
 namespace bg
 {
-    struct vec2
+    struct Vec2
     {
         union 
         {
@@ -18,15 +18,15 @@ namespace bg
             float v[2];
         };
 
-        vec2() {}
-        vec2(float x, float y)
+        Vec2() {}
+        Vec2(float x, float y)
         {
             v[0] = x;
             v[1] = y;
         }
     };
 
-    struct vec3
+    struct Vec3
     {
         union 
         {
@@ -39,8 +39,8 @@ namespace bg
             float v[3];
         };
 
-        vec3() {}
-        vec3(float x, float y, float z)
+        Vec3() {}
+        Vec3(float x, float y, float z)
         {
             v[0] = x;
             v[1] = y;
@@ -48,7 +48,7 @@ namespace bg
         }
     };
 
-    struct vec4
+    struct Vec4
     {
         union 
         {
@@ -62,8 +62,8 @@ namespace bg
             float v[4];
         };
 
-        vec4() {}
-        vec4(float x, float y, float z, float w)
+        Vec4() {}
+        Vec4(float x, float y, float z, float w)
         {
             v[0] = x;
             v[1] = y;
@@ -73,33 +73,33 @@ namespace bg
     };
 
 
-    typedef vec4 plane;
-    typedef vec4 quaternion;
-    typedef vec3 compressed_quaternion;
+    typedef Vec4 Plane;
+    typedef Vec4 Quaternion;
+    typedef Vec3 CompressedQuaternion;
 
-    quaternion uncompress_quaternion(const compressed_quaternion &cq);
+    Quaternion UncompressQuaternion(const CompressedQuaternion &cq);
 
-    struct quat_pos
+    struct QuatPos
     {
-        quat_pos() {}
-        quat_pos(float px, float py, float pz, float qx, float qy, float qz)
-            : quat(uncompress_quaternion(compressed_quaternion(qx, qy, qz))),
+        QuatPos() {}
+        QuatPos(float px, float py, float pz, float qx, float qy, float qz)
+            : quat(UncompressQuaternion(CompressedQuaternion(qx, qy, qz))),
               pos(px, py, pz)
         { }
 
-        quaternion quat;
-        vec3 pos;
+        Quaternion quat;
+        Vec3 pos;
     };
 
-    struct bbox
+    struct BBox
     {
-        bbox(const vec3 &_min, const vec3 &_max)
+        BBox(const Vec3 &_min, const Vec3 &_max)
             : min(_min),
               max(_max)
         {}
 
-        vec3 min;
-        vec3 max;
+        Vec3 min;
+        Vec3 max;
     };
 
 }

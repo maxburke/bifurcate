@@ -11,7 +11,7 @@
 
 namespace bc
 {
-    uint64_t hash(const char *string)
+    uint64_t Hash(const char *string)
     {
         const uint64_t prime = 1099511628211ULL;
         uint64_t rv = 14695981039346656037ULL;
@@ -27,7 +27,7 @@ namespace bc
         return rv;
     }
 
-    uint64_t hash(const char *begin, const char *end)
+    uint64_t Hash(const char *begin, const char *end)
     {
         const uint64_t prime = 1099511628211ULL;
         uint64_t rv = 14695981039346656037ULL;
@@ -54,7 +54,7 @@ namespace bc
     __declspec(thread) __declspec(align(16)) static unsigned char gTempHeap[TEMP_HEAP_SIZE];
     __declspec(thread) static unsigned char *gTempHeapPtr;
 
-    void *temp_alloc(size_t size)
+    void *TempAlloc(size_t size)
     {
         if (gTempHeapPtr == NULL)
             gTempHeapPtr = gTempHeap;
@@ -64,21 +64,26 @@ namespace bc
         return gTempHeapPtr;
     }
 
-    void *temp_get_mark()
+    TempMemMarker::TempMemMarker()
     {
         if (gTempHeapPtr == NULL)
             gTempHeapPtr = gTempHeap;
 
-        return gTempHeapPtr;
+        mPtr = gTempHeapPtr;
     }
 
-    void temp_free_to_mark(void *mark)
+    TempMemMarker::~TempMemMarker()
     {
-        assert(mark <= gTempHeapPtr);
-        gTempHeapPtr = static_cast<unsigned char *>(mark);
+        assert(mPtr <= gTempHeapPtr);
+        Reset();
     }
 
-    bool mem_map_file(void **memory, size_t *size, const char *fileName)
+    void TempMemMarker::Reset()
+    {
+        gTempHeapPtr = static_cast<unsigned char *>(mPtr);
+    }
+
+    bool MemMapFile(void **memory, size_t *size, const char *fileName)
     {
         HANDLE fileHandle = NULL;
         HANDLE fileMapping = NULL;
@@ -135,7 +140,7 @@ namespace bc
     #undef VALIDATE
     }
 
-    void mem_unmap_file(void *memory)
+    void MemUnmapFile(void *memory)
     {
         verify(memory != NULL);
 
@@ -153,20 +158,20 @@ namespace bc
         gfile_map_data[fileMapIndex] = mappingData;
     }
 
-    auto_mem_map::auto_mem_map(const char *file_name)
+    AutoMemMap::AutoMemMap(const char *file_name)
         : mMem(NULL),
           mSize(0),
           mFileName(file_name)
     {
-        mem_map_file(&mMem, &mSize, mFileName);
+        MemMapFile(&mMem, &mSize, mFileName);
     }
 
-    auto_mem_map::~auto_mem_map()
+    AutoMemMap::~AutoMemMap()
     {
-        mem_unmap_file(mMem);
+        MemUnmapFile(mMem);
     }
 
-    void *_internal_mem_alloc(pool_t pool, size_t size, size_t align, int line, const char *file)
+    void *_InternalMemAlloc(pool_t pool, size_t size, size_t align, int line, const char *file)
     {
         UNUSED(line);
         UNUSED(pool);
@@ -179,101 +184,106 @@ namespace bc
         _aligned_free(block);
     }
 
-    struct intern_table_entry
+    struct InternTableEntry
     {
         uint64_t mHash;
         const char *mString;
     };
 
-    struct intern_table
+    struct InternTable
     {
-        intern_table *mNext;
+        InternTable *mNext;
         char *mPtr;
-        intern_table_entry *mInternTableEntry;
-        intern_table_entry *mInternTableEntryEnd;
+        InternTableEntry *mInternTableEntry;
+        InternTableEntry *mInternTableEntryEnd;
         char mBuffer[4096 - 4 * sizeof(void *)];
     };
 
-    static intern_table *allocate_intern_table()
+    static InternTable *AllocateInternTable()
     {
-        intern_table *table = static_cast<intern_table *>(VirtualAlloc(NULL, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+        InternTable *table = static_cast<InternTable *>(VirtualAlloc(NULL, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
         table->mNext = 0;
         table->mPtr = table->mBuffer;
-        table->mInternTableEntryEnd = (intern_table_entry *)((char *)table + 4096);
+        table->mInternTableEntryEnd = (InternTableEntry *)((char *)table + 4096);
         table->mInternTableEntry = table->mInternTableEntryEnd;
 
         return table;
     }
 
-    static bool entry_comparer(const intern_table_entry &a, const intern_table_entry &b)
+    static bool EntryComparer(const InternTableEntry &a, const InternTableEntry &b)
     {
         return a.mHash < b.mHash;
     }
 
-    static const char *search_tables(intern_table *table, uint64_t hash)
+    static const char *SearchTables(InternTable *table, uint64_t hash)
     {
         if (table == NULL)
             return NULL;
 
-        intern_table_entry target = { hash, 0 };
+        InternTableEntry target = { hash, 0 };
 
-        std::pair<intern_table_entry *, intern_table_entry *> bounds = std::equal_range(
+        std::pair<InternTableEntry *, InternTableEntry *> bounds = std::equal_range(
                 table->mInternTableEntry,
                 table->mInternTableEntryEnd,
                 target, 
-                entry_comparer);
+                EntryComparer);
 
         if (bounds.first < bounds.second)
             return bounds.first->mString;
-        return search_tables(table->mNext, hash);
+        return SearchTables(table->mNext, hash);
     }
 
-    const char *intern(const char **out_ptr, uint64_t *out_hash, const char *begin, const char *end)
+    const char *Intern(const char **outPtr, uint64_t *outHash, const char *begin, const char *end)
     {
-        static_assert(sizeof(intern_table) == 4096, "Intern table entries must be page-sized");
-        static intern_table *gInternTable;
+        static_assert(sizeof(InternTable) == 4096, "Intern table entries must be page-sized");
+        static InternTable *gInternTable;
 
         if (gInternTable == NULL)
-            gInternTable = allocate_intern_table();
+            gInternTable = AllocateInternTable();
 
-        uint64_t stringHash = hash(begin, end);
-        const char *string = search_tables(gInternTable, stringHash);
+        uint64_t stringHash = Hash(begin, end);
+        const char *string = SearchTables(gInternTable, stringHash);
         if (string)
             goto finish;
 
-        intern_table *table = gInternTable;
+        // This calculation should be end - begin + sizeof(void *) - 1, but it needs to take into account the 
+        // size of the null at the end. Adding the +1 for the null cancels out the - 1.
+        const size_t allocationSize = (static_cast<size_t>(end - begin) + sizeof(void *)) & ~(sizeof(void *) - 1);
+        const size_t max_length = sizeof(gInternTable->mBuffer) - sizeof(InternTableEntry);
+        assert(allocationSize < max_length);
 
-        size_t length = static_cast<size_t>(begin - end);
-        const size_t max_length = sizeof(table->mBuffer) - sizeof(intern_table_entry);
-        assert(length < max_length);
-
-        const size_t required_space = length + 1 + sizeof(intern_table_entry);
-        const size_t available_space = reinterpret_cast<uintptr_t>(table->mInternTableEntry) 
-            - reinterpret_cast<uintptr_t>(table->mPtr);
+        const size_t required_space = allocationSize + 1 + sizeof(InternTableEntry);
+        const size_t available_space = reinterpret_cast<uintptr_t>(gInternTable->mInternTableEntry) 
+            - reinterpret_cast<uintptr_t>(gInternTable->mPtr);
         if (required_space > available_space)
-            table = allocate_intern_table();
-        string = table->mPtr;
+        {
+            InternTable *table = AllocateInternTable();
+            table->mNext = gInternTable;
+            gInternTable = table;
+        }
+        string = gInternTable->mPtr;
 
+        const size_t length = static_cast<size_t>(end - begin);
         memcpy(const_cast<char *>(string), begin, length);
-        table->mPtr[length] = 0;
-        table->mPtr += length + 1;
+        gInternTable->mPtr[length] = 0;
+        gInternTable->mPtr += allocationSize;
 
-        intern_table_entry *entry = --table->mInternTableEntry;
+        InternTableEntry *entry = --gInternTable->mInternTableEntry;
         entry->mHash = stringHash;
         entry->mString = string;
-        std::sort(table->mInternTableEntry, table->mInternTableEntryEnd, entry_comparer);
+        std::sort(gInternTable->mInternTableEntry, gInternTable->mInternTableEntryEnd, EntryComparer);
 
     finish:
-        if (out_hash)
-            *out_hash = stringHash;
-        if (out_ptr)
-            *out_ptr = string;
+        if (outHash)
+            *outHash = stringHash;
+        if (outPtr)
+            *outPtr = string;
 
         return string;
     }
 
-    const char *intern(const char **out, uint64_t *out_hash, const char *str)
+    const char *Intern(const char **out, uint64_t *outHash, const char *str)
     {
-        return intern(out, out_hash, str, str + strlen(str));
+        return Intern(out, outHash, str, str + strlen(str));
     }
 }

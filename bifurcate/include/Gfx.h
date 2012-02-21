@@ -5,23 +5,32 @@
 
 namespace bg
 {
-    struct draw_element_buffer;
-    struct vertex
+    struct IndexBuffer;
+    struct MeshVertexBuffer;
+    struct MeshWeightedPositionBuffer;
+
+    struct MeshVertex
     {
-        vec3 position;
-        vec2 uv;
-        vec3 normal;
+        Vec2 mTexCoords;
+        short mWeightIndex;
+        short mWeightElement;
     };
 
-    draw_element_buffer *deb_create(int numVertices, int numIndices);    
-    void deb_set_vertices(draw_element_buffer *buffer, bg::vertex *vertices);
-    void deb_set_indices(draw_element_buffer *buffer, unsigned short *indices);
-    void deb_destroy(draw_element_buffer *buffer);
+    struct WeightedPosition
+    {
+        Vec3 mPosition;
+        float mJointWeight;
+        int mJointIndex;
+    };
 
-    int gfx_initialize(void *instance, int width, int height);
-    void gfx_shutdown();
-    void gfx_begin_scene();
-    void gfx_end_scene();
+    IndexBuffer *IndexBufferCreate(int numIndices, unsigned short *indices);
+    MeshVertexBuffer *MeshVertexBufferCreate(int numVertices, MeshVertex *vertices);
+    MeshWeightedPositionBuffer *MeshWeightedPositionBufferCreate(int numPositions, Vec4 *weightedPositions, unsigned char *jointIndices);
+
+    int GfxInitialize(void *instance, int width, int height);
+    void GfxShutdown();
+    void GfxBeginScene();
+    void GfxEndScene();
 }
 
 #endif

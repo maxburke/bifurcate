@@ -1,27 +1,31 @@
 #ifndef BIFURCATE_MESH_H
 #define BIFURCATE_MESH_H
 
+#include "Config.h"
+#include "MathTypes.h"
+#include "Gfx.h"
+
 namespace bg
 {
-    struct joint
+    struct Joint
     {
         const char *mName;
         uint64_t mNameHash;
-        quat_pos mInitial;
+        QuatPos mInitial;
     };
 
-    struct mesh
+    struct MeshData
     {
-    };
-
-    struct mesh_data
-    {
-        int mNumFrames;
+        int mNumJoints;
         int mNumMeshes;
-        joint *mJoints;
+        Joint *mJoints;
+        int *mNumVerts;
+        IndexBuffer **mIndexBuffers;
+        MeshVertexBuffer **mVertexBuffers;
+        MeshWeightedPositionBuffer **mWeightedPositionBuffers;
     };
 
-    const mesh_data *load_mesh(const char *file_name);
+    const MeshData *LoadMesh(const char *fileName);
 }
 
 #endif

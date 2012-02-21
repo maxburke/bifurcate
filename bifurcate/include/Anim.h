@@ -16,7 +16,7 @@ namespace bg
         ANIM_QZ = 1 << 5,
     };
 
-    struct anim_joint
+    struct AnimJoint
     {
         const char *mName;
         uint64_t mNameHash;
@@ -25,19 +25,19 @@ namespace bg
         int mFirstComponent;
     };
 
-    struct anim_data
+    struct AnimData
     {
         int mNumFrames;
         int mNumJoints;
         int mNumAnimatedComponents;
         int mFrameRate;
-        anim_joint *mJoints;
-        bbox *mBoundingBoxes;
-        quat_pos *mBaseFrame;
+        AnimJoint *mJoints;
+        BBox *mBoundingBoxes;
+        QuatPos *mBaseFrame;
         float *mComponentFrames;
     };
 
-    const anim_data *load_anim(const char *file_name);
+    const AnimData *LoadAnim(const char *fileName);
 }
 
 #endif

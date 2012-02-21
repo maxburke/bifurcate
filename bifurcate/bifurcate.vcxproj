@@ -77,13 +77,11 @@
     <ClCompile Include="source\Gfx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="source\Loader.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="source\Main.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="source\Math.cpp" />
+    <ClCompile Include="source\Mesh.cpp" />
     <ClCompile Include="source\Parser.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -91,12 +89,11 @@
   <ItemGroup>
     <ClInclude Include="include\Anim.h" />
     <ClInclude Include="include\Config.h" />
-    <ClInclude Include="include\Decls.h" />
     <ClInclude Include="include\Core.h" />
     <ClInclude Include="include\Gfx.h" />
-    <ClInclude Include="include\Loader.h" />
     <ClInclude Include="include\Map.h" />
     <ClInclude Include="include\MathTypes.h" />
+    <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Parser.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
