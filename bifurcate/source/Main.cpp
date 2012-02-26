@@ -9,6 +9,10 @@
 #include "Anim.h"
 #include "Mesh.h"
 
+#include "Component.h"
+
+void RunTests();
+
 int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, int showCmd)
 {
     UNUSED(instance);
@@ -18,6 +22,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
 
     if (bg::GfxInitialize(instance, 1280, 720))
         return 1;
+
+    RunTests();
 
     //bx::load_map("z:/doom3data/maps/game/recycling1.proc");
     bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");

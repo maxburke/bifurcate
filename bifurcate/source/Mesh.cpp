@@ -119,7 +119,7 @@ namespace bg
                 ParsedInt i1 = parser.ParseInt();
                 ParsedInt i2 = parser.ParseInt();
 
-                if (!i0.Valid() || i1.Valid() || i2.Valid())
+                if (!i0.Valid() || !i1.Valid() || !i2.Valid())
                     return NULL;
 
                 assert(i0 <= 65535 && i1 <= 65535 && i2 <= 65535);

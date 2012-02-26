@@ -71,6 +71,7 @@
     <ClCompile Include="source\Anim.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\Component.cpp" />
     <ClCompile Include="source\Core.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -85,9 +86,11 @@
     <ClCompile Include="source\Parser.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\Tests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Anim.h" />
+    <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\Config.h" />
     <ClInclude Include="include\Core.h" />
     <ClInclude Include="include\Gfx.h" />

@@ -8,6 +8,7 @@ namespace bg
     struct IndexBuffer;
     struct MeshVertexBuffer;
     struct MeshWeightedPositionBuffer;
+    struct Material;
 
     struct MeshVertex
     {

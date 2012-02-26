@@ -1,5 +1,6 @@
 #pragma warning(push, 0)
 #define NOMINMAX
+#define D3D_DEBUG_INFO
 #include <d3d9.h>
 #pragma warning(pop)
 
@@ -18,7 +19,7 @@ namespace bg
 
 #define SAFE_RELEASE(x) if (x) x->Release();
 
-    void alert_get_last_message(void)
+    void AlertGetLastMessage(void)
     {
         LPTSTR buffer;
         FormatMessage(
@@ -33,7 +34,7 @@ namespace bg
         __debugbreak();
     }
 
-    static LRESULT CALLBACK window_callback(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
+    static LRESULT CALLBACK WindowCallback(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         switch(msg)
         {
@@ -47,13 +48,13 @@ namespace bg
         return 0;
     }
 
-    static int register_windowClass(HINSTANCE instance)
+    static int RegisterWindowClass(HINSTANCE instance)
     {
         WNDCLASS windowClass;
         ATOM rv;
 
         ZeroMemory(&windowClass, sizeof windowClass);
-        windowClass.lpfnWndProc = window_callback;
+        windowClass.lpfnWndProc = WindowCallback;
         windowClass.hInstance = instance;
         windowClass.lpszClassName = WINDOW_CLASS;
         windowClass.hCursor = LoadIcon(instance, IDC_ARROW);
@@ -62,7 +63,7 @@ namespace bg
         return rv == 0;
     }
 
-    static int create_window(HINSTANCE instance, int width, int height)
+    static int CreateGameWindow(HINSTANCE instance, int width, int height)
     {
         gWindowHandle = CreateWindow(
             WINDOW_CLASS,
@@ -79,7 +80,7 @@ namespace bg
 
         if (gWindowHandle == NULL)
         {
-            alert_get_last_message();
+            AlertGetLastMessage();
             return 0;
         }
         else
@@ -91,7 +92,7 @@ namespace bg
         return gWindowHandle == NULL;
     }
 
-    static int initialize_device(HWND window_handle, int width, int height)
+    static int InitializeDevice(HWND window_handle, int width, int height)
     {
         gD3d = Direct3DCreate9(D3D_SDK_VERSION);
         if (gD3d == NULL)
@@ -124,9 +125,9 @@ namespace bg
     int GfxInitialize(void *instance, int width, int height)
     {
         HINSTANCE hinstance = static_cast<HINSTANCE>(instance);
-        if (register_windowClass(hinstance)
-            || create_window(hinstance, width, height)
-            || initialize_device(gWindowHandle, width, height))
+        if (RegisterWindowClass(hinstance)
+            || CreateGameWindow(hinstance, width, height)
+            || InitializeDevice(gWindowHandle, width, height))
             return 1;
 
         return 0;
@@ -158,7 +159,7 @@ namespace bg
         const size_t bufferSize = numIndices * sizeof(*indices);
         if (FAILED(gDevice->CreateIndexBuffer(
             bufferSize,
-            0,
+            D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
             D3DFMT_INDEX16,
             D3DPOOL_DEFAULT,
             &buffer,
@@ -182,7 +183,7 @@ namespace bg
         const size_t bufferSize = num_vertices * sizeof(*vertices);
         if (FAILED(gDevice->CreateVertexBuffer(
             bufferSize,
-            0,
+            D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC,
             0,
             D3DPOOL_DEFAULT,
             &buffer,
@@ -208,16 +209,29 @@ namespace bg
     MeshWeightedPositionBuffer *MeshWeightedPositionBufferCreate(int numPositions, Vec4 *weightedPositions, unsigned char *jointIndices)
     {
         MeshWeightedPositionBuffer *buffer = static_cast<MeshWeightedPositionBuffer *>(MemAlloc(bc::POOL_GFX, sizeof(*buffer)));
+        IDirect3DTexture9 *positionTexture;
+        IDirect3DTexture9 *jointTexture;
         UINT width = static_cast<UINT>(numPositions);
 
-        if (FAILED(gDevice->CreateTexture(width, 1, 1, 0, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &buffer->mPositionTexture, NULL)))
+        if (FAILED(gDevice->CreateTexture(width, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &positionTexture, NULL)))
             return NULL;
 
-        if (FAILED(gDevice->CreateTexture(width, 1, 1, 0, D3DFMT_L8, D3DPOOL_DEFAULT, &buffer->mJointTexture, NULL)))
+        if (FAILED(gDevice->CreateTexture(width, 1, 1, D3DUSAGE_DYNAMIC, D3DFMT_L8, D3DPOOL_DEFAULT, &jointTexture, NULL)))
             return NULL;
 
-        UNUSED(jointIndices);
-        UNUSED(weightedPositions);
+        D3DLOCKED_RECT rect;
+        if (FAILED(positionTexture->LockRect(0, &rect, NULL, D3DLOCK_DISCARD)))
+            return NULL;
+        memcpy(rect.pBits, weightedPositions, numPositions * sizeof(*weightedPositions));
+        positionTexture->UnlockRect(0);
+
+        if (FAILED(jointTexture->LockRect(0, &rect, NULL, D3DLOCK_DISCARD)))
+            return NULL;
+        memcpy(rect.pBits, jointIndices, numPositions * sizeof(*jointIndices));
+        jointTexture->UnlockRect(0);
+
+        buffer->mPositionTexture = positionTexture;
+        buffer->mJointTexture = jointTexture;
         return buffer;
     }
 

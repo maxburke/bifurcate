@@ -6,7 +6,7 @@
 
 namespace bg
 {
-    enum anim_flags_t
+    enum AnimFlags
     {
         ANIM_TX = 1 << 0,
         ANIM_TY = 1 << 1,

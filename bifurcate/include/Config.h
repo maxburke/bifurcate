@@ -13,6 +13,13 @@ typedef          __int8  int8_t;
 typedef          __int16 int16_t;
 typedef          __int32 int32_t;
 typedef          __int64 int64_t;
+
+#ifdef _M_IX86
+typedef uint32_t uintptr_t;
+typedef int32_t intptr_t;
+typedef int32_t ssize_t;
+#endif
+
 #endif
 
 #if !defined(UNUSED)
@@ -58,6 +65,12 @@ namespace bc
 
         #define array_sizeof(ARRAY) sizeof(bc::detail::sizeof_array_helper(ARRAY))
     }
+
+    class Uncopyable
+    {
+        Uncopyable(const Uncopyable &);
+        Uncopyable &operator =(const Uncopyable &);
+    };
 }
 
 

@@ -171,6 +171,37 @@ namespace bc
         MemUnmapFile(mMem);
     }
 
+    Futex::Futex()
+    {
+        static_assert(sizeof(mFutexStorage) == sizeof(CRITICAL_SECTION), "Ensure that the futex storage is big enough");
+        LPCRITICAL_SECTION criticalSection = (LPCRITICAL_SECTION)mFutexStorage;
+        InitializeCriticalSection(criticalSection);
+    }
+
+    Futex::~Futex()
+    {
+        LPCRITICAL_SECTION criticalSection = (LPCRITICAL_SECTION)mFutexStorage;
+        DeleteCriticalSection(criticalSection);
+    }
+
+    void Futex::Lock()
+    {
+        LPCRITICAL_SECTION criticalSection = (LPCRITICAL_SECTION)mFutexStorage;
+        EnterCriticalSection(criticalSection);
+    }
+
+    bool Futex::TryLock()
+    {
+        LPCRITICAL_SECTION criticalSection = (LPCRITICAL_SECTION)mFutexStorage;
+        return TryEnterCriticalSection(criticalSection) != 0;
+    }
+
+    void Futex::Unlock()
+    {
+        LPCRITICAL_SECTION criticalSection = (LPCRITICAL_SECTION)mFutexStorage;
+        LeaveCriticalSection(criticalSection);
+    }
+
     void *_InternalMemAlloc(pool_t pool, size_t size, size_t align, int line, const char *file)
     {
         UNUSED(line);
@@ -179,9 +210,97 @@ namespace bc
         return _aligned_malloc(size, align);
     }
 
-    void mem_free(void *block)
+    void MemFree(void *block)
     {
         _aligned_free(block);
+    }
+
+    FixedBlockAllocator::~FixedBlockAllocator()
+    {
+        assert(this->mMemoryPool == NULL && "Ensure that Teardown() is called before destruction!");
+        assert(this->mIndices == NULL);
+    }
+
+    void FixedBlockAllocator::Initialize(size_t numElements, size_t elementAlignment, size_t elementSize)
+    {
+        const size_t alignedElementSize = (elementSize + (elementAlignment - 1)) & ~(elementAlignment - 1);
+        const size_t allocationSize = numElements * elementSize;
+        this->mMemoryPool = MemAlloc(bc::POOL_COMPONENT, allocationSize);
+        size_t * const indices = static_cast<size_t *>(MemAlloc(bc::POOL_COMPONENT, numElements * sizeof(size_t)));
+        this->mIndices = indices;
+        this->mCurrentIndex = 0;
+        this->mNumElements = numElements;
+        this->mElementSize = alignedElementSize;
+                 
+        for (size_t i = 0, e = numElements; i < e; ++i)
+            indices[i] = i;
+    }
+
+    void FixedBlockAllocator::Teardown()
+    {
+        assert(mCurrentIndex == 0 && "Component memory pool still has outstanding allocations!");
+
+        bc::MemFree(this->mIndices);
+        mIndices = NULL;
+        bc::MemFree(this->mMemoryPool);
+        mMemoryPool = NULL;
+    }
+
+    void *FixedBlockAllocator::Allocate()
+    {
+        bc::AutoFutex autoFutex(this->mFutex);
+        const size_t arrayIndex = this->mCurrentIndex;
+        const size_t numElements = this->mNumElements;
+        if (arrayIndex >= numElements)
+            return NULL;
+
+        const size_t *indices = this->mIndices;
+        const size_t elementSize = this->mElementSize;
+        char *pool = static_cast<char *>(this->mMemoryPool);
+
+        this->mCurrentIndex = arrayIndex + 1;
+        const size_t index = indices[arrayIndex];
+        return pool + index * elementSize;
+    }
+
+    void FixedBlockAllocator::Free(void *object)
+    {
+        const size_t elementSize = this->mElementSize;
+        char * const memoryPool = static_cast<char *>(this->mMemoryPool);
+
+        const uintptr_t objectPoolIndex = static_cast<uintptr_t>(
+            static_cast<char *>(object) - static_cast<char *>(memoryPool)) / elementSize;
+        assert(objectPoolIndex < this->mNumElements);
+
+        {
+            bc::AutoFutex autoFutex(mFutex);
+
+            size_t rosterPosition, e;
+            const size_t currentIndex = this->mCurrentIndex;
+            size_t * const indices = this->mIndices;
+
+            for (rosterPosition = 0, e = currentIndex; rosterPosition < e; ++rosterPosition)
+                if (indices[rosterPosition] == objectPoolIndex)
+                {
+                    break;
+                }
+
+            const size_t lastIndex = currentIndex - 1;
+            assert(rosterPosition <= lastIndex);
+            const size_t lastIndexValue = indices[lastIndex];
+
+            indices[rosterPosition] = lastIndexValue;
+            indices[lastIndex] = objectPoolIndex;
+            this->mCurrentIndex = lastIndex;
+        }
+    }
+
+    void *FixedBlockAllocator::GetObjectAtIndexImpl(size_t index)
+    {
+        assert(index < this->mCurrentIndex);
+        char *base = static_cast<char *>(this->mMemoryPool);
+        const size_t elementSize = this->mElementSize;
+        return base + (elementSize * index);
     }
 
     struct InternTableEntry
