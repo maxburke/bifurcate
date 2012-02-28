@@ -1,10 +1,19 @@
 #ifndef BIFURCATE_CORE_H
 #define BIFURCATE_CORE_H
 
+#include "Config.h"
+
 namespace bc
 {
     uint64_t Hash(const char *string);
     uint64_t Hash(const char *begin, const char *end);
+
+    template<typename T>
+    T RoundUp(T boundary, T value)
+    {
+        assert((boundary & (boundary - 1)) == 0);
+        return (value + boundary - 1) & ~(boundary - 1);
+    }
 
     class TempMemMarker
     {
@@ -83,7 +92,7 @@ namespace bc
         }
     };
 
-    enum pool_t
+    enum Pool
     {
         POOL_INVALID,
         POOL_STRING,
@@ -93,8 +102,8 @@ namespace bc
         POOL_COMPONENT
     };
 
-    void *_InternalMemAlloc(pool_t pool, size_t size, size_t align, int line, const char *file);
-    #define MemAlignedAlloc(pool, size, align) bc::_InternalMemAlloc(pool, size, align, __LINE__, __FILE__)
+    void *_InternalMemAlloc(int pool, size_t size, size_t align, int line, const char *file);
+    #define MemAlignedAlloc(pool, align, size) bc::_InternalMemAlloc(pool, size, align, __LINE__, __FILE__)
     #define MemAlloc(pool, size) bc::_InternalMemAlloc(pool, size, 16, __LINE__, __FILE__)
 
     void MemFree(void *block);
@@ -131,6 +140,11 @@ namespace bc
 
     const char *Intern(const char **out, uint64_t *out_hash, const char *begin, const char *end);
     const char *Intern(const char **out, uint64_t *out_hash, const char *str);
+
+    void UpdateFrameTime();
+    uint64_t GetTotalTicks();
+    uint64_t GetFrameTicks();
+    uint64_t GetFrequency();
 }
 
 #endif

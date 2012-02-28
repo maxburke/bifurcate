@@ -31,9 +31,10 @@ namespace bg
         int mNumJoints;
         int mNumAnimatedComponents;
         int mFrameRate;
+        float mClockTicksPerFrame;
         AnimJoint *mJoints;
         BBox *mBoundingBoxes;
-        QuatPos *mBaseFrame;
+        SoaQuatPos mBaseFrame;
         float *mComponentFrames;
     };
 

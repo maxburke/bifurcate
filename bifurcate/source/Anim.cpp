@@ -1,3 +1,4 @@
+#include <new>
 #include <string.h>
 
 #include "Anim.h"
@@ -41,20 +42,27 @@ namespace bg
             || !numAnimatedComponents.Valid())
             return NULL;
 
+        const uint64_t frequency = bc::GetFrequency();
+        const float clockTicksPerFrame = static_cast<float>(frequency) / static_cast<float>(frameRate);
+
         ad->mNumFrames = numFrames;
         ad->mNumJoints = numJoints;
         ad->mFrameRate = frameRate;
+        ad->mClockTicksPerFrame = clockTicksPerFrame;
         ad->mNumAnimatedComponents = numAnimatedComponents;
         ad->mJoints = static_cast<AnimJoint *>(MemAlloc(POOL_ANIM, sizeof(AnimJoint) * ad->mNumJoints));
         ad->mBoundingBoxes = static_cast<BBox *>(MemAlloc(POOL_ANIM, sizeof(BBox) * ad->mNumFrames));
-        ad->mBaseFrame = static_cast<QuatPos *>(MemAlloc(POOL_ANIM, sizeof(QuatPos) * ad->mNumJoints));
+
+        const size_t soaQuatPosMemorySize = SoaQuatPos::MemorySize(numJoints);
+        void *soaQuatPosMemory = MemAlignedAlloc(POOL_ANIM, SIMD_ALIGNMENT, soaQuatPosMemorySize);
+        ad->mBaseFrame.Initialize(numJoints, soaQuatPosMemory);
         ad->mComponentFrames = static_cast<float *>(MemAlloc(POOL_ANIM, sizeof(float) * ad->mNumAnimatedComponents * ad->mNumFrames));
 
         CHOMP("hierarchy");
         CHOMP("{");
 
         AnimJoint *joints = ad->mJoints;
-        for (int i = 0; i < numJoints; ++i)
+        for (int i = 0, e = numJoints; i < e; ++i)
         {
             ParsedString jointName = parser.ParseString();
             ParsedInt parentIndex = parser.ParseInt();
@@ -80,7 +88,7 @@ namespace bg
         CHOMP("{");
 
         BBox *BBoxes = ad->mBoundingBoxes;
-        for (int i = 0; i < numFrames; ++i)
+        for (int i = 0, e = numFrames; i < e; ++i)
         {
             CHOMP("(");
             ParsedFloat minX = parser.ParseFloat();
@@ -109,38 +117,49 @@ namespace bg
         CHOMP("baseframe");
         CHOMP("{");
 
-        QuatPos *qp = ad->mBaseFrame;
-        for (int i = 0; i < numJoints; ++i)
+        SoaQuatPos &qp = ad->mBaseFrame;
         {
-            CHOMP("(");
-            // position
-            ParsedFloat px = parser.ParseFloat();
-            ParsedFloat py = parser.ParseFloat();
-            ParsedFloat pz = parser.ParseFloat();
-            CHOMP(")");
+            float *x = qp.mX, *y = qp.mY, *z = qp.mZ, *qqx = qp.mQx, *qqy = qp.mQy, *qqz = qp.mQz;
 
-            CHOMP("(");
-            // rotation
-            ParsedFloat qx = parser.ParseFloat();
-            ParsedFloat qy = parser.ParseFloat();
-            ParsedFloat qz = parser.ParseFloat();
-            CHOMP(")");
+            for (int i = 0, e = numJoints; i < e; ++i)
+            {
+                CHOMP("(");
+                // position
+                ParsedFloat px = parser.ParseFloat();
+                ParsedFloat py = parser.ParseFloat();
+                ParsedFloat pz = parser.ParseFloat();
+                CHOMP(")");
 
-            if (!px.Valid()
-                || !py.Valid()
-                || !pz.Valid()
-                || !qx.Valid()
-                || !qy.Valid()
-                || !qz.Valid())
-                return NULL;
+                CHOMP("(");
+                // rotation
+                ParsedFloat qx = parser.ParseFloat();
+                ParsedFloat qy = parser.ParseFloat();
+                ParsedFloat qz = parser.ParseFloat();
+                CHOMP(")");
 
-            qp[i] = QuatPos(px, py, pz, qx, qy, qz);
+                if (!px.Valid()
+                    || !py.Valid()
+                    || !pz.Valid()
+                    || !qx.Valid()
+                    || !qy.Valid()
+                    || !qz.Valid())
+                    return NULL;
+
+                x[i] = px;
+                y[i] = py;
+                z[i] = pz;
+                qqx[i] = qx;
+                qqy[i] = qy;
+                qqz[i] = qz;
+            }
+
+            qp.UncompressQw();
         }
 
         CHOMP("}");
 
         float *componentFrames = ad->mComponentFrames;
-        for (int i = 0; i < numFrames; ++i)
+        for (int i = 0, e = numFrames; i < e; ++i)
         {
             CHOMP("frame");
             ParsedInt frame = parser.ParseInt();
@@ -149,7 +168,7 @@ namespace bg
                 return NULL;
 
             CHOMP("{");
-            for (int ii = 0; ii < numAnimatedComponents; ++ii)
+            for (int ii = 0, ee = numAnimatedComponents; ii < ee; ++ii)
             {
                 ParsedFloat component = parser.ParseFloat();
                 if (!component.Valid())

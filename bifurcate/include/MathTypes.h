@@ -6,6 +6,13 @@
 
 namespace bg
 {
+    union ConversionUnion
+    {
+        unsigned int mUnsigned;
+        int mSigned;
+        float mFloat;
+    };
+
     struct Vec2
     {
         union 
@@ -14,8 +21,10 @@ namespace bg
             {
                 float x;
                 float y;
+                float __z;
+                float __w;
             };
-            float v[2];
+            float v[4];
         };
 
         Vec2() {}
@@ -35,8 +44,9 @@ namespace bg
                 float x;
                 float y;
                 float z;
+                float __w;
             };
-            float v[3];
+            float v[4];
         };
 
         Vec3() {}
@@ -89,6 +99,23 @@ namespace bg
 
         Quaternion quat;
         Vec3 pos;
+    };
+
+    struct SoaQuatPos
+    {
+        void UncompressQw();
+        void Initialize(int numElements, void *memory);
+        static size_t MemorySize(int numElements);
+
+        size_t mNumElements;
+        float *mBase;
+        float *mX;
+        float *mY;
+        float *mZ;
+        float *mQx;
+        float *mQy;
+        float *mQz;
+        float *mQw;
     };
 
     struct BBox

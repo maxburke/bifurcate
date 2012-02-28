@@ -84,8 +84,7 @@ namespace bgp
 
     class AnimatableComponent : public Component
     {
-        bg::AnimData **mClips;
-        bg::AnimData *mCurrentClip;
+        bg::AnimData *mClip;
         SkinnedMeshComponent *mMesh;
 
         DECLARE_COMMON_COMPONENT_MEMBERS();

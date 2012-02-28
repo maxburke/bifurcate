@@ -202,7 +202,7 @@ namespace bc
         LeaveCriticalSection(criticalSection);
     }
 
-    void *_InternalMemAlloc(pool_t pool, size_t size, size_t align, int line, const char *file)
+    void *_InternalMemAlloc(int pool, size_t size, size_t align, int line, const char *file)
     {
         UNUSED(line);
         UNUSED(pool);
@@ -404,5 +404,35 @@ namespace bc
     const char *Intern(const char **out, uint64_t *outHash, const char *str)
     {
         return Intern(out, outHash, str, str + strlen(str));
+    }
+    
+    static uint64_t gTotalTicks;
+    static uint64_t gLastFrameTicks;
+    static uint64_t gCurrentFrameTicks;
+
+    void UpdateFrameTime()
+    {
+        gLastFrameTicks = gCurrentFrameTicks;
+        QueryPerformanceCounter((LARGE_INTEGER *)&gCurrentFrameTicks);
+    }
+
+    uint64_t GetTotalTicks()
+    {
+        return gTotalTicks;
+    }
+
+    uint64_t GetFrameTicks()
+    {
+        return gCurrentFrameTicks - gLastFrameTicks;
+    }
+
+    uint64_t GetFrequency()
+    {
+        static uint64_t gFrequency;
+
+        if (gFrequency == 0)
+            QueryPerformanceFrequency((LARGE_INTEGER *)&gFrequency);
+
+        return gFrequency;
     }
 }

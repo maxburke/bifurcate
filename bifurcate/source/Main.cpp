@@ -5,6 +5,7 @@
 #pragma warning(pop)
 
 #include "Config.h"
+#include "Core.h"
 #include "Gfx.h"
 #include "Anim.h"
 #include "Mesh.h"
@@ -33,6 +34,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
 
     while (GetMessage(&msg, NULL, 0, 0))
     {
+        bc::UpdateFrameTime();
+
         TranslateMessage(&msg);
         DispatchMessage(&msg);
 

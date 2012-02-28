@@ -37,11 +37,21 @@ namespace bgp
 
     void SkinnedMeshComponent::UpdateAll()
     {
+        for (size_t i = 0, e = gComponentPool.GetNumLiveObjects(); i < e; ++i)
+        {
+            SkinnedMeshComponent *obj = gComponentPool.GetObjectAtIndex<SkinnedMeshComponent>(i);
+            UNUSED(obj);
+        }
     }
 
     DEFINE_COMMON_COMPONENT_MEMBERS(Animatable)
 
     void AnimatableComponent::UpdateAll()
     {
+        for (size_t i = 0, e = gComponentPool.GetNumLiveObjects(); i < e; ++i)
+        {
+            AnimatableComponent *obj = gComponentPool.GetObjectAtIndex<AnimatableComponent>(i);
+            UNUSED(obj);
+        }
     }
 }

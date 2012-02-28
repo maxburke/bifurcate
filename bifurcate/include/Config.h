@@ -5,7 +5,12 @@
 #   pragma warning(disable:4514)
 #   pragma warning(disable:4820)
 #   define B_WIN32 1
-typedef unsigned __int8   uint8_t;
+
+// Currently only supporting SSE
+#   define SIMD_SIZE 4
+#   define SIMD_ALIGNMENT 16
+
+typedef unsigned __int8  uint8_t;
 typedef unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
