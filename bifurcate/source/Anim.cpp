@@ -57,11 +57,14 @@ namespace bg
         void *soaQuatPosMemory = MemAlignedAlloc(POOL_ANIM, SIMD_ALIGNMENT, soaQuatPosMemorySize);
         ad->mBaseFrame.Initialize(numJoints, soaQuatPosMemory);
         ad->mComponentFrames = static_cast<float *>(MemAlloc(POOL_ANIM, sizeof(float) * ad->mNumAnimatedComponents * ad->mNumFrames));
+        ad->mComponentIndices = static_cast<int *>(MemAlloc(POOL_ANIM, sizeof(int) * ad->mNumAnimatedComponents));
 
         CHOMP("hierarchy");
         CHOMP("{");
 
         AnimJoint *joints = ad->mJoints;
+        int *componentIndexPtr = ad->mComponentIndices;
+        SoaQuatPos *baseFrame = &ad->mBaseFrame;
         for (int i = 0, e = numJoints; i < e; ++i)
         {
             ParsedString jointName = parser.ParseString();
@@ -81,7 +84,61 @@ namespace bg
             joints[i].mJointFlags = jointFlags;
             joints[i].mParentIndex = parentIndex;
             joints[i].mFirstComponent = firstComponent;
+
+            assert(jointFlags == 0 || (componentIndexPtr - ad->mComponentIndices == firstComponent));
+
+            const int translationMask = jointFlags & ANIM_TRANSLATION_MASK;
+            switch (translationMask)
+            {
+            case ANIM_TX:
+                *componentIndexPtr++ = &baseFrame->mX[i] - baseFrame->mBase; break;
+            case ANIM_TY:
+                *componentIndexPtr++ = &baseFrame->mY[i] - baseFrame->mBase; break;
+            case ANIM_TZ:
+                *componentIndexPtr++ = &baseFrame->mZ[i] - baseFrame->mBase; break;
+            case (ANIM_TX | ANIM_TY):
+                *componentIndexPtr++ = &baseFrame->mX[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mY[i] - baseFrame->mBase; break;
+            case (ANIM_TX | ANIM_TZ):
+                *componentIndexPtr++ = &baseFrame->mX[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mZ[i] - baseFrame->mBase; break;
+            case (ANIM_TY | ANIM_TZ):
+                *componentIndexPtr++ = &baseFrame->mY[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mZ[i] - baseFrame->mBase; break;
+            case (ANIM_TX | ANIM_TY | ANIM_TZ):
+                *componentIndexPtr++ = &baseFrame->mX[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mY[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mZ[i] - baseFrame->mBase; break;
+                break;
+            }
+
+            int rotationMask = jointFlags & ANIM_ROTATION_MASK;
+            switch (rotationMask)
+            {
+            case ANIM_QX:
+                *componentIndexPtr++ = &baseFrame->mQx[i] - baseFrame->mBase; break;
+            case ANIM_QY:
+                *componentIndexPtr++ = &baseFrame->mQy[i] - baseFrame->mBase; break;
+            case ANIM_QZ:
+                *componentIndexPtr++ = &baseFrame->mQz[i] - baseFrame->mBase; break;
+            case (ANIM_QX | ANIM_QY):
+                *componentIndexPtr++ = &baseFrame->mQx[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mQy[i] - baseFrame->mBase; break;
+            case (ANIM_QX | ANIM_QZ):
+                *componentIndexPtr++ = &baseFrame->mQx[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mQz[i] - baseFrame->mBase; break;
+            case (ANIM_QY | ANIM_QZ):
+                *componentIndexPtr++ = &baseFrame->mQy[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mQz[i] - baseFrame->mBase; break;
+            case (ANIM_QX | ANIM_QY | ANIM_QZ):
+                *componentIndexPtr++ = &baseFrame->mQx[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mQy[i] - baseFrame->mBase;
+                *componentIndexPtr++ = &baseFrame->mQz[i] - baseFrame->mBase; break;
+                break;
+            }
         }
+
+        assert(componentIndexPtr - ad->mComponentIndices == ad->mNumAnimatedComponents);
 
         CHOMP("}");
         CHOMP("bounds");
@@ -179,6 +236,41 @@ namespace bg
         }
 
         return ad;
+    }
+
+    void InterpolateAnimationFrames(SoaQuatPos *interpolated, const AnimData *animData, int frameOneIdx, int frameTwoIdx, float lerp)
+    {
+        assert(frameOneIdx < animData->mNumFrames);
+        assert(frameTwoIdx < animData->mNumFrames);
+
+        const SoaQuatPos *baseFrame = &animData->mBaseFrame;
+        const int numElements = baseFrame->mNumElements;
+        const size_t size = SoaQuatPos::MemorySize(numElements);
+        float * const frameOneBase = static_cast<float *>(AllocaAligned(SIMD_ALIGNMENT, size));
+        float * const frameTwoBase = static_cast<float *>(AllocaAligned(SIMD_ALIGNMENT, size));
+
+        SoaQuatPos frameOne(numElements, frameOneBase);
+        SoaQuatPos frameTwo(numElements, frameTwoBase);
+        float * const base = baseFrame->mBase;
+
+        memcpy(frameOne.mBase, base, size);
+        memcpy(frameTwo.mBase, base, size);
+
+        const int numComponents = animData->mNumAnimatedComponents;
+        float * const frameOneComponents = animData->mComponentFrames + numComponents * frameOneIdx;
+        float * const frameTwoComponents = animData->mComponentFrames + numComponents * frameTwoIdx;
+        int * indices = animData->mComponentIndices;
+
+        for (int i = 0; i < numComponents; ++i)
+        {
+            const int index = indices[i];
+            const float f1 = frameOneComponents[i];
+            const float f2 = frameTwoComponents[i];
+            frameOneBase[index] = f1;
+            frameTwoBase[index] = f2;
+        }
+
+        interpolated->Interpolate(&frameOne, &frameTwo, lerp);
     }
 }
 

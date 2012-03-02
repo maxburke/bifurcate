@@ -27,8 +27,13 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     RunTests();
 
     //bx::load_map("z:/doom3data/maps/game/recycling1.proc");
-    bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");
+    const bg::AnimData *ad = bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");
     bg::LoadMesh("z:/doom3data/models/md5/monsters/hellknight/hellknight.md5mesh");
+
+    bg::SoaQuatPos out;
+    const int elements = ad->mBaseFrame.mNumElements;
+    out.Initialize(elements, AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements)));
+    bg::InterpolateAnimationFrames(&out, ad, 0, 1, 0.4f);
 
     MSG msg;
 

@@ -44,9 +44,15 @@ static void TestComponentPool()
     pool.Teardown();
 }
 
+namespace bg
+{
+    void TestMath();
+}
+
 void RunTests()
 {
     TestComponentPool();
+    bg::TestMath();
 }
 
 #else

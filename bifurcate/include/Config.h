@@ -8,7 +8,9 @@
 
 // Currently only supporting SSE
 #   define SIMD_SIZE 4
-#   define SIMD_ALIGNMENT 16
+#   define SIMD_ALIGNMENT size_t(16)
+
+#   define RESTRICT __restrict
 
 typedef unsigned __int8  uint8_t;
 typedef unsigned __int16 uint16_t;

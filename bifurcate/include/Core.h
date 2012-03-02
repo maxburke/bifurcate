@@ -2,6 +2,7 @@
 #define BIFURCATE_CORE_H
 
 #include "Config.h"
+#include <malloc.h>
 
 namespace bc
 {
@@ -105,6 +106,7 @@ namespace bc
     void *_InternalMemAlloc(int pool, size_t size, size_t align, int line, const char *file);
     #define MemAlignedAlloc(pool, align, size) bc::_InternalMemAlloc(pool, size, align, __LINE__, __FILE__)
     #define MemAlloc(pool, size) bc::_InternalMemAlloc(pool, size, 16, __LINE__, __FILE__)
+    #define AllocaAligned(align, size) ((void *)((((uintptr_t)(_alloca((size) + (align) - 1))) & ((uintptr_t)(~((align) - 1))))))
 
     void MemFree(void *block);
 

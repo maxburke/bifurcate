@@ -103,11 +103,21 @@ namespace bg
 
     struct SoaQuatPos
     {
+        SoaQuatPos()
+            : mNumElements(0), mBase(0), mX(0), mY(0), mZ(0), mQx(0), mQy(0), mQz(0), mQw(0)
+        {}
+
+        SoaQuatPos(int numElements, void *memory)
+        {
+            Initialize(numElements, memory);
+        }
+
         void UncompressQw();
         void Initialize(int numElements, void *memory);
         static size_t MemorySize(int numElements);
+        void Interpolate(SoaQuatPos *p0, SoaQuatPos *p1, float t);
 
-        size_t mNumElements;
+        int mNumElements;
         float *mBase;
         float *mX;
         float *mY;
