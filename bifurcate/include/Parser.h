@@ -62,6 +62,11 @@ namespace bx
         {
             return mValid;
         }
+
+        T Value() const
+        {
+            return mValue;
+        }
     };
 
     typedef ParsedNumber<int> ParsedInt;
