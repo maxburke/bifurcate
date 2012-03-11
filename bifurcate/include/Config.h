@@ -2,10 +2,10 @@
 #define BIFURCATE_CONFIG_H
 
 #if defined(_MSC_VER)
-#   pragma warning(disable:4514)
-#   pragma warning(disable:4820)
+#   pragma warning(disable:4514) // 'function' : unreferenced inline function has been removed
+#   pragma warning(disable:4820) // '<type>' : 'x' bytes padding added after data member '<member>'
+#   pragma warning(disable:4200) // nonstandard extension used : zero-sized array in struct/union
 #   define B_WIN32 1
-
 // Currently only supporting SSE
 #   define SIMD_SIZE 4
 #   define SIMD_ALIGNMENT size_t(16)
