@@ -147,6 +147,21 @@ namespace bc
     uint64_t GetTotalTicks();
     uint64_t GetFrameTicks();
     uint64_t GetFrequency();
+
+    void ReportError(const char *file, int line, const char *errorFormat, ...);
+
+#ifndef NDEBUG
+    #define SignalErrorAndReturn(x, error, ...) \
+        __pragma(warning(push)) \
+        __pragma(warning(disable: 4127)) \
+        do { \
+            bc::ReportError(__FILE__, __LINE__, error, __VA_ARGS__); \
+            return x; \
+        } while(false) \
+        __pragma(warning(pop))
+#else
+    #define SignalErrorAndReturn(x, error, ...) return x
+#endif
 }
 
 #endif

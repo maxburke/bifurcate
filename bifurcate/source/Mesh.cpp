@@ -9,17 +9,19 @@ namespace bg
         using namespace bc;
         using namespace bx;
 
-        #define CHOMP(string) if (!parser.ExpectAndDiscard(string)) return NULL; else (void)0
-        #define PARSE_INT(value) CHOMP(#value); ParsedInt value = parser.ParseInt(); if (!value.Valid()) return NULL
+        #define CHOMP(string) if (!parser.ExpectAndDiscard(string)) SignalErrorAndReturn(NULL, "Unable to chomp string '%s'.", string); else (void)0
+        #define PARSE_INT(value) CHOMP(#value); ParsedInt value = parser.ParseInt(); if (!value.Valid()) SignalErrorAndReturn(NULL, "Unable to parse integer for value '%s'.", #value)
 
         AutoMemMap file(fileName);
         if (!file.Valid())
-            return NULL;
+            SignalErrorAndReturn(NULL, "Invalid file '%s'.", fileName);
 
         Parser parser(static_cast<const char *>(file.Mem()), static_cast<const char *>(file.Mem()) + file.Size());
         CHOMP("MD5Version");
-        if (parser.ParseInt() != 10)
-            return NULL;
+        ParsedInt version = parser.ParseInt();
+        if (version != 10)
+            SignalErrorAndReturn(NULL, "Invalid md5mesh version %d.", version.Value());
+
         CHOMP("commandline");
         /* ParsedString commandLine = */ parser.ParseString();
 
@@ -31,7 +33,7 @@ namespace bg
 
         if (!numJoints.Valid()
             || !numMeshes.Valid())
-            return NULL;
+            SignalErrorAndReturn(NULL, "Unable to parse number of joints and/or number of meshes.");
 
         md->mNumJoints = numJoints;
         md->mNumMeshes = numMeshes;
@@ -65,10 +67,10 @@ namespace bg
             if (!parentIndex.Valid()
                 || !px.Valid() || !py.Valid() || !pz.Valid()
                 || !qx.Valid() || !qy.Valid() || !qz.Valid())
-                return NULL;
+                SignalErrorAndReturn(NULL, "Unable to parse joint information for joint %d.", i);
 
             if (!Intern(&joints[i].mName, &joints[i].mNameHash, jointName.mBegin, jointName.mEnd))
-                return NULL;
+                SignalErrorAndReturn(NULL, "Unable to intern joint name.");
  
             joints[i].mInitial = QuatPos(px, py, pz, qx, qy, qz);
         }
@@ -99,7 +101,7 @@ namespace bg
                 ParsedInt weightElem = parser.ParseInt();
 
                 if (!u.Valid() || !v.Valid() || !weightIndex.Valid() || !weightElem.Valid())
-                    return NULL;
+                    SignalErrorAndReturn(NULL, "Mesh u/v/weights not valid for vertex %d of mesh %d.", ii, i);
 
                 vertices[i].mTexCoords.x = u;
                 vertices[i].mTexCoords.y = v;
@@ -120,7 +122,7 @@ namespace bg
                 ParsedInt i2 = parser.ParseInt();
 
                 if (!i0.Valid() || !i1.Valid() || !i2.Valid())
-                    return NULL;
+                    SignalErrorAndReturn(NULL, "Triangle indices not valid for tri %d of mesh %d.", ii, i);
 
                 assert(i0 <= 65535 && i1 <= 65535 && i2 <= 65535);
 
@@ -152,12 +154,14 @@ namespace bg
                     || !x.Valid()
                     || !y.Valid()
                     || !z.Valid())
-                    return NULL;
+                    SignalErrorAndReturn(NULL, "Unable to parse weight information at index %d for mesh %d.", ii, i);
 
                 weightedPositions[ii] = Vec4(x, y, z, weight);
                 jointIndices[ii] = static_cast<unsigned char>(jointIndex);
             }
             md->mWeightedPositionBuffers[i] = MeshWeightedPositionBufferCreate(numweights, weightedPositions, jointIndices);
+
+            CHOMP("}");
         }
 
         return md;

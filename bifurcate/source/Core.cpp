@@ -5,6 +5,7 @@
 #pragma warning(pop)
 
 #include <malloc.h>
+#include <stdarg.h>
 
 #include "Config.h"
 #include "Core.h"
@@ -434,5 +435,26 @@ namespace bc
             QueryPerformanceFrequency((LARGE_INTEGER *)&gFrequency);
 
         return gFrequency;
+    }
+
+    void ReportError(const char *file, int line, const char *errorFormat, ...)
+    {
+        char errorBuf[1024];
+
+        int count = _snprintf(errorBuf, sizeof errorBuf, "%s(%d): RUNTIME ERROR: ", file, line);
+
+        va_list args;
+        va_start(args, errorFormat);
+        vsnprintf(errorBuf + count, sizeof errorBuf - count, errorFormat, args);
+        va_end(args);
+
+        errorBuf[1023] = 0;
+
+        OutputDebugString(errorBuf);
+        OutputDebugString("\n");
+        puts(errorBuf);
+
+        if (IsDebuggerPresent())
+            __debugbreak();
     }
 }

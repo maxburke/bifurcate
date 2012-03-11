@@ -17,11 +17,14 @@ namespace bg
         AutoMemMap file(fileName);
 
         if (!file.Valid())
-            return NULL;
+            SignalErrorAndReturn(NULL, "Invalid file '%s'.", fileName);
 
         Parser parser(static_cast<const char *>(file.Mem()), static_cast<const char *>(file.Mem()) + file.Size());
         CHOMP("MD5Version");
-        if (parser.ParseInt() != 10) return NULL;
+        ParsedInt version = parser.ParseInt();
+        if (version != 10) 
+            SignalErrorAndReturn(NULL, "Invalid md5anim version %d.", version.Value());
+
         CHOMP("commandline");
         /* ParsedString commandLine = */ parser.ParseString();
 
@@ -40,7 +43,7 @@ namespace bg
             || !numJoints.Valid()
             || !frameRate.Valid()
             || !numAnimatedComponents.Valid())
-            return NULL;
+            SignalErrorAndReturn(NULL, "Unable to parse frames/joints/framerate/# of animated components.");
 
         const uint64_t frequency = bc::GetFrequency();
         const float clockTicksPerFrame = static_cast<float>(frequency) / static_cast<float>(frameRate);
@@ -48,7 +51,7 @@ namespace bg
         ad->mNumFrames = numFrames;
         ad->mNumJoints = numJoints;
         ad->mFrameRate = frameRate;
-        ad->mClockTicksPerFrame = clockTicksPerFrame;
+        ad->mInvClockTicksPerFrame = 1.0f / clockTicksPerFrame;
         ad->mNumAnimatedComponents = numAnimatedComponents;
         ad->mJoints = static_cast<AnimJoint *>(MemAlloc(POOL_ANIM, sizeof(AnimJoint) * ad->mNumJoints));
         ad->mBoundingBoxes = static_cast<BBox *>(MemAlloc(POOL_ANIM, sizeof(BBox) * ad->mNumFrames));
@@ -76,10 +79,10 @@ namespace bg
                 || !parentIndex.Valid()
                 || !jointFlags.Valid()
                 || !firstComponent.Valid())
-                return NULL;
+                SignalErrorAndReturn(NULL, "Unable to parse bone information for bone %d.", i);
 
             if (!Intern(&joints[i].mName, &joints[i].mNameHash, jointName.mBegin, jointName.mEnd))
-                return NULL;
+                SignalErrorAndReturn(NULL, "Unable to intern bone name (bone %d).", i);
 
             joints[i].mJointFlags = jointFlags;
             joints[i].mParentIndex = parentIndex;
@@ -164,7 +167,7 @@ namespace bg
                 || !maxX.Valid()
                 || !maxY.Valid()
                 || !maxZ.Valid())
-                return NULL;
+                SignalErrorAndReturn(NULL, "Unable to parse bounding box extents (idx %d).", i);
 
             BBoxes[i] = BBox(Vec3(minX, minY, minZ), Vec3(maxX, maxY, maxZ));
         }
@@ -200,7 +203,7 @@ namespace bg
                     || !qx.Valid()
                     || !qy.Valid()
                     || !qz.Valid())
-                    return NULL;
+                    SignalErrorAndReturn(NULL, "Unable to parse baseframe information for frame %d.", i);
 
                 x[i] = px;
                 y[i] = py;
@@ -222,14 +225,14 @@ namespace bg
             ParsedInt frame = parser.ParseInt();
 
             if (frame != i)
-                return NULL;
+                SignalErrorAndReturn(NULL, "Frame value is unexpected for frame %d.", i);
 
             CHOMP("{");
             for (int ii = 0, ee = numAnimatedComponents; ii < ee; ++ii)
             {
                 ParsedFloat component = parser.ParseFloat();
                 if (!component.Valid())
-                    return NULL;
+                    SignalErrorAndReturn(NULL, "Frame component is invalid at idx %d.", ii);
                 *componentFrames++ = component;
             }
             CHOMP("}");

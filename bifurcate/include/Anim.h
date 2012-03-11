@@ -33,7 +33,7 @@ namespace bg
         int mNumJoints;
         int mNumAnimatedComponents;
         int mFrameRate;
-        float mClockTicksPerFrame;
+        float mInvClockTicksPerFrame;
         AnimJoint *mJoints;
         int *mComponentIndices;
         BBox *mBoundingBoxes;
