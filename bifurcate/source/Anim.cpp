@@ -169,7 +169,9 @@ namespace bg
                 || !maxZ.Valid())
                 SignalErrorAndReturn(NULL, "Unable to parse bounding box extents (idx %d).", i);
 
-            BBoxes[i] = BBox(Vec3(minX, minY, minZ), Vec3(maxX, maxY, maxZ));
+            Vec3 min = { minX, minY, minZ, 0 };
+            Vec3 max = { maxX, maxY, maxZ, 0 };
+            BBoxes[i] = BBox(min, max );
         }
 
         CHOMP("}");
