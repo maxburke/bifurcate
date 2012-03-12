@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include <stdio.h>
 #pragma warning(pop)
 
 #include "Config.h"
@@ -21,6 +22,9 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     UNUSED(cmdline);
     UNUSED(showCmd);
 
+    // Initialize frame times to some value that isn't nonsense.
+    bc::UpdateFrameTime();
+
     if (bg::GfxInitialize(instance, 1280, 720))
         return 1;
 
@@ -28,14 +32,15 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
 
     //bx::load_map("z:/doom3data/maps/game/recycling1.proc");
     const bg::AnimData *ad = bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");
-    bg::LoadMesh("z:/doom3data/models/md5/monsters/hellknight/hellknight.md5mesh");
-
-    bg::SoaQuatPos out;
-    const int elements = ad->mBaseFrame.mNumElements;
-    out.Initialize(elements, AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements)));
-    bg::InterpolateAnimationFrames(&out, ad, 0, 1, 0.4f);
+    const bg::SkinnedMeshData *md = bg::LoadMesh("z:/doom3data/models/md5/monsters/hellknight/hellknight.md5mesh");
 
     MSG msg;
+
+    int mFrame0 = 0;
+    int mFrame1 = 0;
+    float mCurrentLerpFactor = 0;
+
+#define WRAP(X, MIN, MAX) (((X)>=(MAX))?(MIN):(X))
 
     while (GetMessage(&msg, NULL, 0, 0))
     {
@@ -44,7 +49,36 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
         TranslateMessage(&msg);
         DispatchMessage(&msg);
 
+        // The code between the two comments below is essentially the animatable component
+        // update loop. Fantastic!
+        // void AnimatableComponent::Update(const bg::AnimData *ad) {
+            bg::SoaQuatPos out;
+            const int elements = ad->mBaseFrame.mNumElements;
+            out.Initialize(elements, AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements)));
+
+            int numFramesPerAnimation = ad->mNumFrames;
+            int frame0 = mFrame0;
+            int frame1 = mFrame1;
+            float lerpFactor = static_cast<float>(bc::GetFrameTicks()) * ad->mInvClockTicksPerFrame;
+            float currentLerpFactor = mCurrentLerpFactor + lerpFactor;
+
+            while (currentLerpFactor > 1.0f)
+            {
+                frame0 = WRAP(frame0 + 1, 0, numFramesPerAnimation);
+                frame1 = WRAP(frame0 + 1, 0, numFramesPerAnimation);
+                currentLerpFactor -= 1.0f;
+            }
+
+            bg::InterpolateAnimationFrames(&out, ad, frame0, frame1, currentLerpFactor);
+
+            mFrame0 = frame0;
+            mFrame1 = frame1;
+            mCurrentLerpFactor = currentLerpFactor;
+        // }
+
+        UNUSED(md);
         bg::GfxBeginScene();
+        bg::DrawSkinnedMesh(md, &out);
         bg::GfxEndScene();
     }
 
