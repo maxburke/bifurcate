@@ -9,6 +9,38 @@
 
 namespace bgp
 {
+    struct Component;
+    struct GameObject;
+    struct Type;
+    struct ComponentDescriptor;
+
+    const ComponentDescriptor *GetComponentDescriptor(const char *name);
+    const Type *GetType(const char *name);
+    const Type *CreateType(const char *name, const ComponentDescriptor **descriptors, size_t numComponents);
+
+    struct ComponentInitializer
+    {
+        const ComponentDescriptor *mComponentDescriptor;
+        void *mInitializerData;
+    };
+
+    GameObject *InstantiateType(const Type *type, ComponentInitializer *componentInitializers, size_t numInitializers);
+
+    struct GameObject
+    {
+        bg::Vec3 mPosition;
+        size_t mNumComponents;
+        const Type *mType;
+        Component *mComponents[0];
+
+        friend GameObject *InstantiateType(const Type *type);
+
+    public:
+        size_t GetComponents(Component *components, size_t componentArraySize);
+        Component *GetComponent();
+    };
+
+#if 0
     typedef size_t Type;
     class GameObject;
 
@@ -48,17 +80,6 @@ namespace bgp
 
     void InitializeAllComponents();
 
-    class GameObject
-    {
-        bg::Vec3 mPosition;
-        size_t mNumComponents;
-        ComponentHandle *mComponents;
-
-    public:
-        size_t GetComponents(ComponentHandle *components, size_t componentArraySize);
-        Component *GetComponent(Type type);
-    };
-
 #define DECLARE_COMMON_COMPONENT_MEMBERS() \
     static bc::FixedBlockAllocator gComponentPool; \
     static void UpdateAll(); \
@@ -92,6 +113,7 @@ namespace bgp
     public:
         AnimatableComponent(GameObject *object);
     };
+#endif
 }
 
 #endif
