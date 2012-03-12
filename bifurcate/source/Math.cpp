@@ -1,4 +1,5 @@
 #include <math.h>
+#include <string.h>
 #include "MathTypes.h"
 #include "Core.h"
 
@@ -6,6 +7,15 @@
 
 namespace bg
 {
+    void Mat4x4::SetIdentity()
+    {
+        memset(this, 0, sizeof *this);
+        this->v[0] = 1;
+        this->v[5] = 1;
+        this->v[10] = 1;
+        this->v[15] = 1;
+    }
+
     void SoaQuatPos::Initialize(int numElements, void *memory)
     {
         this->mNumElements = numElements;
@@ -180,7 +190,7 @@ namespace bg
         *cos = c;
     }
 
-    void SoaQuatPos::Interpolate(SoaQuatPos * RESTRICT p0, SoaQuatPos * RESTRICT p1, float t)
+    void SoaQuatPos::Interpolate(const SoaQuatPos * RESTRICT p0, const SoaQuatPos * RESTRICT p1, float t)
     {
         const int numElements = this->mNumElements;
 
@@ -193,7 +203,7 @@ namespace bg
         const __m128 t1 = _mm_set1_ps(1.0f - t);
 
         float *pX = this->mX;
-        float *pY = this->mY; 
+        float *pY = this->mY;
         float *pZ = this->mZ;
         float *pX0 = p0->mX;
         float *pY0 = p0->mY;
@@ -285,9 +295,59 @@ namespace bg
         }
     }
 
+    void SoaQuatPos::ConvertToMat4x3(Mat4x3 *matrices) const
+    {
+        float *pQx = this->mQx;
+        float *pQy = this->mQy;
+        float *pQz = this->mQz;
+        float *pQw = this->mQw;
+        float *pX = this->mX;
+        float *pY = this->mY;
+        float *pZ = this->mZ;
+
+        for (int i = 0, e = this->mNumElements; i < e; ++i, ++matrices)
+        {
+            float qx = pQx[i];
+            float qy = pQy[i];
+            float qz = pQz[i];
+            float qw = pQw[i];
+            float x = pX[i];
+            float y = pY[i];
+            float z = pZ[i];
+
+            float qxqx = qx * qx;
+            float qxqy = qx * qy;
+            float qxqz = qx * qz;
+            float qxqw = qx * qw;
+
+            float qyqy = qy * qy;
+            float qyqz = qy * qz;
+            float qyqw = qy * qw;
+            
+            float qzqz = qz * qz;
+            float qzqw = qz * qw;
+
+            matrices->v[0] = 1.0f - 2.0f * (qyqy + qzqz);
+            matrices->v[1] =        2.0f * (qxqy - qzqw);
+            matrices->v[2] =        2.0f * (qxqz + qyqw);
+            matrices->v[3] = x;
+
+            matrices->v[4] =        2.0f * (qxqy + qzqw);
+            matrices->v[5] = 1.0f - 2.0f * (qxqx + qzqz);
+            matrices->v[6] =        2.0f * (qyqz - qxqw);
+            matrices->v[7] = y;
+            
+            matrices->v[8] =        2.0f * (qxqz - qyqw);
+            matrices->v[9] =        2.0f * (qyqz + qxqw);
+            matrices->v[10] = 1.0f - 2.0f * (qxqx + qyqy);
+            matrices->v[11] = z;
+        }
+    }
+
     Quaternion UncompressQuaternion(const CompressedQuaternion &cq)
     {
-        return Quaternion(cq.x, cq.y, cq.z, sqrt(fabs(1.0f - (cq.x * cq.x + cq.y * cq.y + cq.z * cq.z))));
+        Quaternion q = { cq.x, cq.y, cq.z, sqrt(fabs(1.0f - (cq.x * cq.x + cq.y * cq.y + cq.z * cq.z))) };
+        return q;
     }
 
     void TestMath()

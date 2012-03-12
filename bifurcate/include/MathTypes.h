@@ -26,13 +26,6 @@ namespace bg
             };
             float v[4];
         };
-
-        Vec2() {}
-        Vec2(float x, float y)
-        {
-            v[0] = x;
-            v[1] = y;
-        }
     };
 
     struct Vec3
@@ -48,14 +41,6 @@ namespace bg
             };
             float v[4];
         };
-
-        Vec3() {}
-        Vec3(float x, float y, float z)
-        {
-            v[0] = x;
-            v[1] = y;
-            v[2] = z;
-        }
     };
 
     struct Vec4
@@ -71,17 +56,29 @@ namespace bg
             };
             float v[4];
         };
-
-        Vec4() {}
-        Vec4(float x, float y, float z, float w)
-        {
-            v[0] = x;
-            v[1] = y;
-            v[2] = z;
-            v[3] = w;
-        }
     };
 
+    struct Mat4x3
+    {
+        union
+        {
+            Vec4 row[3];
+            float v[12];
+        };
+
+        void SetIdentity();
+    };
+
+    struct Mat4x4
+    {
+        union
+        {
+            Vec4 row[4];
+            float v[16];
+        };
+
+        void SetIdentity();
+    };
 
     typedef Vec4 Plane;
     typedef Vec4 Quaternion;
@@ -93,9 +90,13 @@ namespace bg
     {
         QuatPos() {}
         QuatPos(float px, float py, float pz, float qx, float qy, float qz)
-            : quat(UncompressQuaternion(CompressedQuaternion(qx, qy, qz))),
-              pos(px, py, pz)
-        { }
+        {
+            Vec3 compressedQuaternion = { qx, qy, qz, 0 };
+            quat = UncompressQuaternion(compressedQuaternion);
+            pos.x = px;
+            pos.y = py;
+            pos.z = pz;
+        }
 
         Quaternion quat;
         Vec3 pos;
@@ -115,7 +116,8 @@ namespace bg
         void UncompressQw();
         void Initialize(int numElements, void *memory);
         static size_t MemorySize(int numElements);
-        void Interpolate(SoaQuatPos *p0, SoaQuatPos *p1, float t);
+        void Interpolate(const SoaQuatPos *p0, const SoaQuatPos *p1, float t);
+        void ConvertToMat4x3(Mat4x3 *matrices) const;
 
         int mNumElements;
         float *mBase;
