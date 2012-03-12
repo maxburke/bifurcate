@@ -14,18 +14,18 @@ namespace bg
         QuatPos mInitial;
     };
 
-    struct MeshData
+    struct SkinnedMeshData
     {
         int mNumJoints;
         int mNumMeshes;
         Joint *mJoints;
-        int *mNumVerts;
+        int *mNumTris;
         IndexBuffer **mIndexBuffers;
         MeshVertexBuffer **mVertexBuffers;
         MeshWeightedPositionBuffer **mWeightedPositionBuffers;
     };
 
-    const MeshData *LoadMesh(const char *fileName);
+    const SkinnedMeshData *LoadMesh(const char *fileName);
 }
 
 #endif

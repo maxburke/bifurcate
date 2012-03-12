@@ -1,7 +1,7 @@
 #ifndef BIFURCATE_GFX_H
 #define BIFURCATE_GFX_H
 
-#include <MathTypes.h>
+#include "MathTypes.h"
 
 namespace bg
 {
@@ -9,6 +9,7 @@ namespace bg
     struct MeshVertexBuffer;
     struct MeshWeightedPositionBuffer;
     struct Material;
+    struct SkinnedMeshData;
 
     struct MeshVertex
     {
@@ -32,6 +33,8 @@ namespace bg
     void GfxShutdown();
     void GfxBeginScene();
     void GfxEndScene();
+
+    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData);
 }
 
 #endif

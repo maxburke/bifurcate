@@ -4,7 +4,7 @@
 
 namespace bg
 {
-    const MeshData *LoadMesh(const char *fileName)
+    const SkinnedMeshData *LoadMesh(const char *fileName)
     {
         using namespace bc;
         using namespace bx;
@@ -25,7 +25,7 @@ namespace bg
         CHOMP("commandline");
         /* ParsedString commandLine = */ parser.ParseString();
 
-        MeshData *md = static_cast<MeshData *>(MemAlloc(POOL_MESH, sizeof(MeshData)));
+        SkinnedMeshData *md = static_cast<SkinnedMeshData *>(MemAlloc(POOL_MESH, sizeof(SkinnedMeshData)));
         CHOMP("numJoints");
         ParsedInt numJoints = parser.ParseInt();
         CHOMP("numMeshes");
@@ -45,6 +45,7 @@ namespace bg
         md->mIndexBuffers = static_cast<IndexBuffer **>(MemAlloc(POOL_MESH, sizeof(IndexBuffer *) * md->mNumMeshes));
         md->mVertexBuffers = static_cast<MeshVertexBuffer **>(MemAlloc(POOL_MESH, sizeof(MeshVertexBuffer *) * md->mNumMeshes));
         md->mWeightedPositionBuffers = static_cast<MeshWeightedPositionBuffer **>(MemAlloc(POOL_MESH, sizeof(MeshWeightedPositionBuffer *) * md->mNumMeshes));
+        md->mNumTris = static_cast<int *>(MemAlloc(POOL_MESH, sizeof(int) * md->mNumMeshes));
 
         Joint *joints = md->mJoints;
         for (int i = 0, e = numJoints; i < e; ++i)
@@ -112,6 +113,7 @@ namespace bg
             marker.Reset();
 
             PARSE_INT(numtris);
+            md->mNumTris[i] = numtris;
             unsigned short *indices = static_cast<unsigned short *>(TempAlloc(sizeof(unsigned short) * numtris));
             for (int ii = 0, writeIndex = 0, ee = numtris; ii < ee; ++ii)
             {
@@ -156,7 +158,8 @@ namespace bg
                     || !z.Valid())
                     SignalErrorAndReturn(NULL, "Unable to parse weight information at index %d for mesh %d.", ii, i);
 
-                weightedPositions[ii] = Vec4(x, y, z, weight);
+                Vec4 weightedPosition = { x, y, z, weight };
+                weightedPositions[ii] = weightedPosition;
                 jointIndices[ii] = static_cast<unsigned char>(jointIndex);
             }
             md->mWeightedPositionBuffers[i] = MeshWeightedPositionBufferCreate(numweights, weightedPositions, jointIndices);
