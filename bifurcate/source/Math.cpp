@@ -295,7 +295,7 @@ namespace bg
         }
     }
 
-    void SoaQuatPos::ConvertToMat4x3(Mat4x3 *matrices) const
+    void SoaQuatPos::ConvertToMat4x4(Mat4x4 *matrices) const
     {
         float *pQx = this->mQx;
         float *pQy = this->mQy;
@@ -341,6 +341,11 @@ namespace bg
             matrices->v[9] =        2.0f * (qyqz + qxqw);
             matrices->v[10] = 1.0f - 2.0f * (qxqx + qyqy);
             matrices->v[11] = z;
+
+            matrices->v[12] = 0;
+            matrices->v[13] = 0;
+            matrices->v[14] = 0;
+            matrices->v[15] = 1;
         }
     }
 

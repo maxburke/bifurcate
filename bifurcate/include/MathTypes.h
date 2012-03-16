@@ -117,7 +117,7 @@ namespace bg
         void Initialize(int numElements, void *memory);
         static size_t MemorySize(int numElements);
         void Interpolate(const SoaQuatPos *p0, const SoaQuatPos *p1, float t);
-        void ConvertToMat4x3(Mat4x3 *matrices) const;
+        void ConvertToMat4x4(Mat4x4 *matrices) const;
 
         int mNumElements;
         float *mBase;
