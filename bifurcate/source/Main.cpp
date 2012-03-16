@@ -25,7 +25,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     // Initialize frame times to some value that isn't nonsense.
     bc::UpdateFrameTime();
 
-    if (bg::GfxInitialize(instance, 1280, 720))
+    if (!bg::GfxInitialize(instance, 1280, 720))
         return 1;
 
     RunTests();
