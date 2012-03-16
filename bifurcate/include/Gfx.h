@@ -13,7 +13,8 @@ namespace bg
 
     struct MeshVertex
     {
-        Vec2 mTexCoords;
+        float mTexU;
+        float mTexV;
         short mWeightIndex;
         short mWeightElement;
     };
@@ -25,16 +26,17 @@ namespace bg
         int mJointIndex;
     };
 
-    IndexBuffer *IndexBufferCreate(int numIndices, unsigned short *indices);
-    MeshVertexBuffer *MeshVertexBufferCreate(int numVertices, MeshVertex *vertices);
-    MeshWeightedPositionBuffer *MeshWeightedPositionBufferCreate(int numPositions, Vec4 *weightedPositions, unsigned char *jointIndices);
-
-    int GfxInitialize(void *instance, int width, int height);
+    bool GfxInitialize(void *instance, int width, int height);
     void GfxShutdown();
     void GfxBeginScene();
     void GfxEndScene();
 
+    IndexBuffer *IndexBufferCreate(int numIndices, unsigned short *indices);
+    MeshVertexBuffer *MeshVertexBufferCreate(int numVertices, MeshVertex *vertices);
+    MeshWeightedPositionBuffer *MeshWeightedPositionBufferCreate(int numPositions, Vec4 *weightedPositions, unsigned char *jointIndices);
     void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData);
+
+    const int MAX_NUM_JOINTS = 256;
 }
 
 #endif

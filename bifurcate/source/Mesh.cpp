@@ -104,10 +104,10 @@ namespace bg
                 if (!u.Valid() || !v.Valid() || !weightIndex.Valid() || !weightElem.Valid())
                     SignalErrorAndReturn(NULL, "Mesh u/v/weights not valid for vertex %d of mesh %d.", ii, i);
 
-                vertices[i].mTexCoords.x = u;
-                vertices[i].mTexCoords.y = v;
-                vertices[i].mWeightIndex = static_cast<short>(weightIndex);
-                vertices[i].mWeightElement = static_cast<short>(weightElem);
+                vertices[ii].mTexU = u;
+                vertices[ii].mTexV = v;
+                vertices[ii].mWeightIndex = static_cast<short>(weightIndex);
+                vertices[ii].mWeightElement = static_cast<short>(weightElem);
             }
             md->mVertexBuffers[i] = MeshVertexBufferCreate(numverts, vertices);
             marker.Reset();
@@ -157,6 +157,9 @@ namespace bg
                     || !y.Valid()
                     || !z.Valid())
                     SignalErrorAndReturn(NULL, "Unable to parse weight information at index %d for mesh %d.", ii, i);
+
+                if (jointIndex >= bg::MAX_NUM_JOINTS)
+                    SignalErrorAndReturn(NULL, "Too many joints for model, max number of supported joints is %d.", bg::MAX_NUM_JOINTS);
 
                 Vec4 weightedPosition = { x, y, z, weight };
                 weightedPositions[ii] = weightedPosition;
