@@ -6,14 +6,7 @@
 
 namespace bg
 {
-    union ConversionUnion
-    {
-        unsigned int mUnsigned;
-        int mSigned;
-        float mFloat;
-    };
-
-    struct Vec2
+    __declspec(align(16)) struct Vec2
     {
         union 
         {
@@ -28,7 +21,7 @@ namespace bg
         };
     };
 
-    struct Vec3
+    __declspec(align(16)) struct Vec3
     {
         union 
         {
@@ -43,7 +36,7 @@ namespace bg
         };
     };
 
-    struct Vec4
+    __declspec(align(16)) struct Vec4
     {
         union 
         {
@@ -58,24 +51,16 @@ namespace bg
         };
     };
 
-    struct Mat4x3
+    __declspec(align(16)) struct Mat4x3
     {
-        union
-        {
-            Vec4 row[3];
-            float v[12];
-        };
+        float v[12];
 
         void SetIdentity();
     };
 
-    struct Mat4x4
+    __declspec(align(16)) struct Mat4x4
     {
-        union
-        {
-            Vec4 row[4];
-            float v[16];
-        };
+        float v[16];
 
         void SetIdentity();
     };
@@ -84,20 +69,10 @@ namespace bg
     typedef Vec4 Quaternion;
     typedef Vec3 CompressedQuaternion;
 
-    Quaternion UncompressQuaternion(const CompressedQuaternion &cq);
-
     struct QuatPos
     {
         QuatPos() {}
-        QuatPos(float px, float py, float pz, float qx, float qy, float qz)
-        {
-            Vec3 compressedQuaternion = { qx, qy, qz, 0 };
-            quat = UncompressQuaternion(compressedQuaternion);
-            pos.x = px;
-            pos.y = py;
-            pos.z = pz;
-        }
-
+        QuatPos(float px, float py, float pz, float qx, float qy, float qz);
         Quaternion quat;
         Vec3 pos;
     };
@@ -141,6 +116,14 @@ namespace bg
         Vec3 max;
     };
 
+    Quaternion QuaternionUncompress(const CompressedQuaternion &cq);
+    Quaternion QuaternionFromAxisAngle(const Vec3 * __restrict axis, float angle);
+    Quaternion QuaternionMultiply(const Quaternion * __restrict q1, const Quaternion * __restrict q2);
+    void Mat4x4Multiply(Mat4x4 * __restrict out, const Mat4x4 * __restrict lhs, const Mat4x4 * __restrict rhs);
+    void Mat4x4FromQuaternion(Mat4x4 * __restrict mat, const Quaternion *__restrict q);
+    void Mat4x4FromQuatPos(Mat4x4 * __restrict out, const QuatPos * __restrict in);
+    void Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in);
+    void MultiplyInverseBindPose(Mat4x4 * __restrict matrices, int numPoses, const Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict inverseBindPose);
 }
 
 #pragma warning(pop)

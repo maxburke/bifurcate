@@ -2,11 +2,76 @@
 #include <string.h>
 #include "MathTypes.h"
 #include "Core.h"
-
-#include "emmintrin.h"
+#include "SseMath.h"
 
 namespace bg
 {
+    Quaternion QuaternionUncompress(const CompressedQuaternion &cq)
+    {
+        Quaternion q = { cq.x, cq.y, cq.z, sqrt(fabs(1.0f - (cq.x * cq.x + cq.y * cq.y + cq.z * cq.z))) };
+        return q;
+    }
+
+    Quaternion QuaternionMultiply(const Quaternion * __restrict quat1, const Quaternion * __restrict quat2)
+    {
+        Quaternion result;
+        const __m128 q1 = _mm_load_ps(quat1->v);
+        const __m128 q2 = _mm_load_ps(quat2->v);
+
+        // x = (q1.w * q2.x) + (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y)
+        // y = (q1.w * q2.y) + (q1.y * q2.w) + (q1.z * q2.x) - (q1.x * q2.z)
+        // z = (q1.w * q2.z) + (q1.z * q2.w) + (q1.x * q2.y) - (q1.y * q2.x)
+        // w = (q1.w * q2.w) - (q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z)
+
+        __m128 negW = _mm_castsi128_ps(_mm_set_epi32(0x80000000, 0, 0, 0));
+
+        __m128 q1w = _mm_shuffle_ps(q1, q1, _MM_SHUFFLE(3, 3, 3, 3));
+        __m128 qa = _mm_mul_ps(q1w, q2);
+
+        __m128 q1xyzx = _mm_or_ps(_mm_shuffle_ps(q1, q1, _MM_SHUFFLE(0, 2, 1, 0)), negW);
+        __m128 q2wwwx = _mm_shuffle_ps(q2, q2, _MM_SHUFFLE(0, 3, 3, 3));
+        __m128 qb = _mm_mul_ps(q1xyzx, q2wwwx);
+
+        __m128 q1yzxy = _mm_or_ps(_mm_shuffle_ps(q1, q1, _MM_SHUFFLE(1, 0, 2, 1)), negW);
+        __m128 q2zxyy = _mm_shuffle_ps(q2, q2, _MM_SHUFFLE(1, 1, 0, 2));
+        __m128 qc = _mm_mul_ps(q1yzxy, q2zxyy);
+
+        __m128 q1zxyz = _mm_shuffle_ps(q1, q1, _MM_SHUFFLE(2, 1, 0, 2));
+        __m128 q2yzxz = _mm_shuffle_ps(q2, q2, _MM_SHUFFLE(2, 0, 2, 1));
+        __m128 qd = _mm_mul_ps(q1zxyz, q2yzxz);
+        
+        const __m128 q = _mm_add_ps(qa, _mm_add_ps(qb, _mm_sub_ps(qc, qd)));
+        _mm_store_ps(result.v, q);
+        return result;
+    }
+
+    Quaternion QuaternionFromAxisAngle(const Vec3 * __restrict axis, float angle)
+    {
+        assert(axis->__w == 0);
+        __m128 sin, cos;
+        _mm_sincos_ps(&sin, &cos, _mm_set1_ps(angle / 2));
+
+        __m128 axisVector = _mm_load_ps(axis->v);
+        __m128 lengthSquared = _mm_dot_ps(axisVector, axisVector);
+        __m128 normalizedAxis = _mm_mul_ps(_mm_mul_ps(lengthSquared, _mm_rsqrt_ps(lengthSquared)), sin);
+        __m128 quatVector = 
+            _mm_or_ps(_mm_and_ps(_mm_castsi128_ps(_mm_set_epi32(0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)), normalizedAxis),
+                  _mm_and_ps(_mm_castsi128_ps(_mm_set_epi32(0xFFFFFFFF, 0, 0, 0)), cos));
+
+        Quaternion q;
+        _mm_store_ps(&q.x, quatVector);
+        return q;
+    }
+
+    QuatPos::QuatPos(float px, float py, float pz, float qx, float qy, float qz)
+    {
+        Vec3 compressedQuaternion = { qx, qy, qz, 0 };
+        quat = QuaternionUncompress(compressedQuaternion);
+        pos.x = px;
+        pos.y = py;
+        pos.z = pz;
+    }
+
     void Mat4x4::SetIdentity()
     {
         memset(this, 0, sizeof *this);
@@ -42,14 +107,6 @@ namespace bg
         return allocationSize;
     }
 
-    static __forceinline __m128 Abs(__m128 a)
-    {
-        ConversionUnion conversionUnion;
-        conversionUnion.mUnsigned = 0x7ffffffful;
-        const __m128 absoluteValueMask = _mm_load1_ps(&conversionUnion.mFloat);
-        return _mm_and_ps(a, absoluteValueMask);
-    }
-
     void SoaQuatPos::UncompressQw()
     {
         const __m128 one = _mm_set1_ps(1.0f);
@@ -69,127 +126,12 @@ namespace bg
             const __m128 z2 = _mm_mul_ps(z, z);
             const __m128 sum = _mm_add_ps(z2, _mm_add_ps(x2, y2));
             const __m128 oneMinus = _mm_sub_ps(one, sum);
-            const __m128 abs = Abs(oneMinus);
+            const __m128 abs = _mm_abs_ps(oneMinus);
             const __m128 w = _mm_sqrt_ps(abs);
             _mm_store_ps(qw + i, w);
         }
     }
-
-    static __forceinline __m128 _mm_madd_ps(__m128 a, __m128 b, __m128 c)
-    {
-        return _mm_add_ps(c, _mm_mul_ps(a, b));
-    }
-
-    static __forceinline __m128 _mm_sel_ps(__m128 f, __m128 t, __m128 mask)
-    {
-        return _mm_or_ps(_mm_and_ps(mask, t), _mm_andnot_ps(mask, f));
-    }
-
-    static __forceinline __m128 _mm_nmsub_ps(__m128 a, __m128 b, __m128 c)
-    {
-        return _mm_sub_ps(c, _mm_mul_ps(a, b));
-    }
     
-    static __forceinline __m128 Acos(__m128 a)
-    {
-        // Many thanks to Bullet Physics for this.
-        const __m128 abs = Abs(a);
-        const __m128 mask = _mm_cmplt_ps(a, _mm_setzero_ps());
-        const __m128 t1 = _mm_sqrt_ps(_mm_sub_ps(_mm_set1_ps(1.0f), abs));
-
-        const __m128 abs2 = _mm_mul_ps(abs, abs);
-        const __m128 abs4 = _mm_mul_ps(abs2, abs2);
-        const __m128 hi = _mm_madd_ps(_mm_madd_ps(_mm_madd_ps(_mm_set1_ps(-0.0012624911f),
-            abs, _mm_set1_ps(0.0066700901f)),
-            abs, _mm_set1_ps(-0.0170881256f)),
-            abs, _mm_set1_ps(0.0308918810f));
-        const __m128 lo = _mm_madd_ps(_mm_madd_ps(_mm_madd_ps(_mm_set1_ps(-0.0501743046f),
-            abs, _mm_set1_ps(0.0889789874f)),
-            abs, _mm_set1_ps(-0.2145988016f)),
-            abs, _mm_set1_ps(1.5707963050f));
-
-        const __m128 result = _mm_madd_ps(hi, abs4, lo);
-        return _mm_sel_ps(_mm_mul_ps(t1, result), _mm_nmsub_ps(t1, result, _mm_set1_ps(3.1415926535898f)), mask);
-    }
-
-    static __forceinline __m128 Sin(__m128 x)
-    {
-        const float CC0 = -0.0013602249f;
-        const float CC1 = 0.0416566950f;
-        const float CC2 = -0.4999990225f;
-        const float SC0 = -0.0001950727f;
-        const float SC1 = 0.0083320758f;
-        const float SC2 = -0.1666665247f;
-        const float KC1 = 1.57079625129f;
-        const float KC2 = 7.54978995489e-8f;
-
-        const __m128i one = _mm_set1_epi32(1);
-        const __m128i two = _mm_set1_epi32(2);
-        const __m128i zero = _mm_setzero_si128();
-
-        const __m128 x1 = _mm_mul_ps(x, _mm_set1_ps(0.63661977236f));
-        const __m128i q = _mm_cvtps_epi32(x1);
-        const __m128i offsetSin = _mm_and_si128(q, _mm_set1_epi32(3));
-        const __m128 qf = _mm_cvtepi32_ps(q);
-        const __m128 x11 = _mm_nmsub_ps(qf, _mm_set1_ps(KC2), _mm_nmsub_ps(qf, _mm_set1_ps(KC1), x));
-        const __m128 x12 = _mm_mul_ps(x11, x11);
-        const __m128 x13 = _mm_mul_ps(x12, x11);
-
-        const __m128 cx = _mm_madd_ps(_mm_madd_ps(_mm_madd_ps(_mm_set1_ps(CC0), x12, _mm_set1_ps(CC1)), x12, _mm_set1_ps(CC2)), x12, _mm_set1_ps(1.0f));
-        const __m128 sx = _mm_madd_ps(_mm_madd_ps(_mm_madd_ps(_mm_set1_ps(SC0), x12, _mm_set1_ps(SC1)), x12, _mm_set1_ps(SC2)), x13, x11);
-
-        const __m128i sinMask = _mm_cmpeq_epi32(_mm_and_si128(offsetSin, one), zero);
-        const __m128 s1 = _mm_sel_ps(cx, sx, _mm_castsi128_ps(sinMask));
-
-        const __m128i sinMask2 = _mm_cmpeq_epi32(_mm_and_si128(offsetSin, two), zero);
-
-        const __m128 highBitMask = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-        return _mm_sel_ps(_mm_xor_ps(highBitMask, s1), s1, _mm_castsi128_ps(sinMask2));
-    }
-
-    static __forceinline void Sincos(__m128 * RESTRICT sin, __m128 * RESTRICT cos, __m128 x)
-    {
-        const float CC0 = -0.0013602249f;
-        const float CC1 = 0.0416566950f;
-        const float CC2 = -0.4999990225f;
-        const float SC0 = -0.0001950727f;
-        const float SC1 = 0.0083320758f;
-        const float SC2 = -0.1666665247f;
-        const float KC1 = 1.57079625129f;
-        const float KC2 = 7.54978995489e-8f;
-
-        const __m128i one = _mm_set1_epi32(1);
-        const __m128i two = _mm_set1_epi32(2);
-        const __m128i zero = _mm_setzero_si128();
-
-        const __m128 x1 = _mm_mul_ps(x, _mm_set1_ps(0.63661977236f));
-        const __m128i q = _mm_cvtps_epi32(x1);
-        const __m128i offsetSin = _mm_and_si128(q, _mm_set1_epi32(3));
-        const __m128i temp = _mm_add_epi32(one, offsetSin);
-        const __m128i offsetCos = temp;
-        const __m128 qf = _mm_cvtepi32_ps(q);
-        const __m128 x11 = _mm_nmsub_ps(qf, _mm_set1_ps(KC2), _mm_nmsub_ps(qf, _mm_set1_ps(KC1), x));
-        const __m128 x12 = _mm_mul_ps(x11, x11);
-        const __m128 x13 = _mm_mul_ps(x12, x11);
-
-        const __m128 cx = _mm_madd_ps(_mm_madd_ps(_mm_madd_ps(_mm_set1_ps(CC0), x12, _mm_set1_ps(CC1)), x12, _mm_set1_ps(CC2)), x12, _mm_set1_ps(1.0f));
-        const __m128 sx = _mm_madd_ps(_mm_madd_ps(_mm_madd_ps(_mm_set1_ps(SC0), x12, _mm_set1_ps(SC1)), x12, _mm_set1_ps(SC2)), x13, x11);
-
-        const __m128i sinMask = _mm_cmpeq_epi32(_mm_and_si128(offsetSin, one), zero);
-        const __m128i cosMask = _mm_cmpeq_epi32(_mm_and_si128(offsetCos, one), zero);
-        const __m128 s1 = _mm_sel_ps(cx, sx, _mm_castsi128_ps(sinMask));
-        const __m128 c1 = _mm_sel_ps(cx, sx, _mm_castsi128_ps(cosMask));
-
-        const __m128i sinMask2 = _mm_cmpeq_epi32(_mm_and_si128(offsetSin, two), zero);
-        const __m128i cosMask2 = _mm_cmpeq_epi32(_mm_and_si128(offsetCos, two), zero);
-
-        const __m128 highBitMask = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
-        const __m128 s = _mm_sel_ps(_mm_xor_ps(highBitMask, s1), s1, _mm_castsi128_ps(sinMask2));
-        const __m128 c = _mm_sel_ps(_mm_xor_ps(highBitMask, c1), c1, _mm_castsi128_ps(cosMask2));
-        *sin = s;
-        *cos = c;
-    }
-
     void SoaQuatPos::Interpolate(const SoaQuatPos * RESTRICT p0, const SoaQuatPos * RESTRICT p1, float t)
     {
         const int numElements = this->mNumElements;
@@ -272,10 +214,10 @@ namespace bg
             const __m128 oneMinusCosOmega = _mm_sub_ps(one, cosOmega);
             const __m128 closeToOneMask = _mm_cmpgt_ps(oneMinusCosOmega, small);
 
-            const __m128 omega = Acos(cosOmega);
-            const __m128 invSinOmega = _mm_rcp_ps(Sin(omega));
-            const __m128 t0a = _mm_mul_ps(Sin(_mm_mul_ps(t1, omega)), invSinOmega);
-            const __m128 t1a = _mm_mul_ps(Sin(_mm_mul_ps(t0, omega)), invSinOmega);
+            const __m128 omega = _mm_acos_ps(cosOmega);
+            const __m128 invSinOmega = _mm_rcp_ps(_mm_sin_ps(omega));
+            const __m128 t0a = _mm_mul_ps(_mm_sin_ps(_mm_mul_ps(t1, omega)), invSinOmega);
+            const __m128 t1a = _mm_mul_ps(_mm_sin_ps(_mm_mul_ps(t0, omega)), invSinOmega);
 
             const __m128 t0b = t1;
             const __m128 t1b = t0;
@@ -349,10 +291,203 @@ namespace bg
         }
     }
 
-    Quaternion UncompressQuaternion(const CompressedQuaternion &cq)
+    void Mat4x4FromQuaternion(Mat4x4 * __restrict mat, const Quaternion *__restrict q)
     {
-        Quaternion q = { cq.x, cq.y, cq.z, sqrt(fabs(1.0f - (cq.x * cq.x + cq.y * cq.y + cq.z * cq.z))) };
-        return q;
+        const float * __restrict quat = q->v;
+        float * __restrict out = mat->v;
+
+        float qx = quat[0];
+        float qy = quat[1];
+        float qz = quat[2];
+        float qw = quat[3];
+
+        float qxqx = qx * qx;
+        float qxqy = qx * qy;
+        float qxqz = qx * qz;
+        float qxqw = qx * qw;
+
+        float qyqy = qy * qy;
+        float qyqz = qy * qz;
+        float qyqw = qy * qw;
+            
+        float qzqz = qz * qz;
+        float qzqw = qz * qw;
+
+        out[0] = 1.0f - 2.0f * (qyqy + qzqz);
+        out[1] =        2.0f * (qxqy - qzqw);
+        out[2] =        2.0f * (qxqz + qyqw);
+        out[3] = 0;
+
+        out[4] =        2.0f * (qxqy + qzqw);
+        out[5] = 1.0f - 2.0f * (qxqx + qzqz);
+        out[6] =        2.0f * (qyqz - qxqw);
+        out[7] = 0;
+            
+        out[8] =        2.0f * (qxqz - qyqw);
+        out[9] =        2.0f * (qyqz + qxqw);
+        out[10] = 1.0f - 2.0f * (qxqx + qyqy);
+        out[11] = 0;
+
+        out[12] = 0;
+        out[13] = 0;
+        out[14] = 0;
+        out[15] = 1;
+    }
+
+    void Mat4x4FromQuatPos(Mat4x4 * __restrict mat, const QuatPos * __restrict quatPos)
+    {
+        const float * __restrict pos = quatPos->pos.v;
+        float * __restrict out = mat->v;
+        Mat4x4FromQuaternion(mat, &quatPos->quat);
+
+        float x = pos[0];
+        float y = pos[1];
+        float z = pos[2];
+        out[3] = x;
+        out[7] = y;
+        out[11] = z;
+    }
+
+    void Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in)
+    {
+        // This matrix inversion routine is from Intel's P3 optimization material.
+        // ftp://download.intel.com/design/PentiumIII/sml/24504301.pdf
+
+        const float * __restrict src = in->v;
+        float * __restrict dst = out->v;
+
+        __m128 minor0, minor1, minor2, minor3;
+        __m128 row0,   row1,   row2,   row3;
+        __m128 det,    tmp1;
+        tmp1 = _mm_setzero_ps();
+        row1 = _mm_setzero_ps();
+        row3 = _mm_setzero_ps();
+        tmp1 = _mm_loadh_pi(_mm_loadl_pi(tmp1, (__m64*)(src)), (__m64*)(src+ 4));
+        row1 = _mm_loadh_pi(_mm_loadl_pi(row1, (__m64*)(src+8)), (__m64*)(src+12));
+        row0 = _mm_shuffle_ps(tmp1, row1, 0x88);
+        row1 = _mm_shuffle_ps(row1, tmp1, 0xDD);
+        tmp1 = _mm_loadh_pi(_mm_loadl_pi(tmp1, (__m64*)(src+ 2)), (__m64*)(src+ 6));
+        row3 = _mm_loadh_pi(_mm_loadl_pi(row3, (__m64*)(src+10)), (__m64*)(src+14));
+        row2 = _mm_shuffle_ps(tmp1, row3, 0x88);
+        row3 = _mm_shuffle_ps(row3, tmp1, 0xDD);
+    
+        tmp1 = _mm_mul_ps(row2, row3);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
+        minor0 = _mm_mul_ps(row1, tmp1);
+        minor1 = _mm_mul_ps(row0, tmp1);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
+        minor0 = _mm_sub_ps(_mm_mul_ps(row1, tmp1), minor0);
+        minor1 = _mm_sub_ps(_mm_mul_ps(row0, tmp1), minor1);
+        minor1 = _mm_shuffle_ps(minor1, minor1, 0x4E);
+    
+        tmp1 = _mm_mul_ps(row1, row2);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
+        minor0 = _mm_add_ps(_mm_mul_ps(row3, tmp1), minor0);
+        minor3 = _mm_mul_ps(row0, tmp1);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
+        minor0 = _mm_sub_ps(minor0, _mm_mul_ps(row3, tmp1));
+        minor3 = _mm_sub_ps(_mm_mul_ps(row0, tmp1), minor3);
+        minor3 = _mm_shuffle_ps(minor3, minor3, 0x4E);
+    
+        tmp1 = _mm_mul_ps(_mm_shuffle_ps(row1, row1, 0x4E), row3);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
+        row2 = _mm_shuffle_ps(row2, row2, 0x4E);
+        minor0 = _mm_add_ps(_mm_mul_ps(row2, tmp1), minor0);
+        minor2 = _mm_mul_ps(row0, tmp1);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
+        minor0 = _mm_sub_ps(minor0, _mm_mul_ps(row2, tmp1));
+        minor2 = _mm_sub_ps(_mm_mul_ps(row0, tmp1), minor2);
+        minor2 = _mm_shuffle_ps(minor2, minor2, 0x4E);
+    
+        tmp1 = _mm_mul_ps(row0, row1);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
+        minor2 = _mm_add_ps(_mm_mul_ps(row3, tmp1), minor2);
+        minor3 = _mm_sub_ps(_mm_mul_ps(row2, tmp1), minor3);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
+        minor2 = _mm_sub_ps(_mm_mul_ps(row3, tmp1), minor2);
+        minor3 = _mm_sub_ps(minor3, _mm_mul_ps(row2, tmp1));
+    
+        tmp1 = _mm_mul_ps(row0, row3);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
+        minor1 = _mm_sub_ps(minor1, _mm_mul_ps(row2, tmp1));
+        minor2 = _mm_add_ps(_mm_mul_ps(row1, tmp1), minor2);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
+        minor1 = _mm_add_ps(_mm_mul_ps(row2, tmp1), minor1);
+        minor2 = _mm_sub_ps(minor2, _mm_mul_ps(row1, tmp1));
+    
+        tmp1 = _mm_mul_ps(row0, row2);
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
+        minor1 = _mm_add_ps(_mm_mul_ps(row3, tmp1), minor1);
+        minor3 = _mm_sub_ps(minor3, _mm_mul_ps(row1, tmp1));
+        tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
+        minor1 = _mm_sub_ps(minor1, _mm_mul_ps(row3, tmp1));
+        minor3 = _mm_add_ps(_mm_mul_ps(row1, tmp1), minor3);
+    
+        det = _mm_mul_ps(row0, minor0);
+        det = _mm_add_ps(_mm_shuffle_ps(det, det, 0x4E), det);
+        det = _mm_add_ss(_mm_shuffle_ps(det, det, 0xB1), det);
+        tmp1 = _mm_rcp_ss(det);
+        det = _mm_sub_ss(_mm_add_ss(tmp1, tmp1), _mm_mul_ss(det, _mm_mul_ss(tmp1, tmp1)));
+        det = _mm_shuffle_ps(det, det, 0x00);
+        minor0 = _mm_mul_ps(det, minor0);
+        _mm_storel_pi((__m64*)(dst), minor0);
+        _mm_storeh_pi((__m64*)(dst+2), minor0);
+        minor1 = _mm_mul_ps(det, minor1);
+        _mm_storel_pi((__m64*)(dst+4), minor1);
+        _mm_storeh_pi((__m64*)(dst+6), minor1);
+        minor2 = _mm_mul_ps(det, minor2);
+        _mm_storel_pi((__m64*)(dst+ 8), minor2);
+        _mm_storeh_pi((__m64*)(dst+10), minor2);
+        minor3 = _mm_mul_ps(det, minor3);
+        _mm_storel_pi((__m64*)(dst+12), minor3);
+        _mm_storeh_pi((__m64*)(dst+14), minor3);
+    }
+
+    __forceinline void Mat4x4Multiply(Mat4x4 * __restrict out, const Mat4x4 * __restrict lhs, const Mat4x4 * __restrict rhs)
+    {
+        const float * __restrict l = lhs->v;
+        const float * __restrict r = rhs->v;
+        float * __restrict o = out->v;
+
+        __m128 p0 = _mm_load_ps(l + 0);
+        __m128 p1 = _mm_load_ps(l + 4);
+        __m128 p2 = _mm_load_ps(l + 8);
+        __m128 p3 = _mm_load_ps(l + 12);
+
+        __m128 i0 = _mm_load_ps(r + 0);
+        __m128 i1 = _mm_load_ps(r + 4);
+        __m128 i2 = _mm_load_ps(r + 8);
+        __m128 i3 = _mm_load_ps(r + 12);
+
+        _MM_TRANSPOSE4_PS(i0, i1, i2, i3);
+
+        _mm_store_ss(o + 0, _mm_dot_ps(p0, i0));
+        _mm_store_ss(o + 1, _mm_dot_ps(p0, i1));
+        _mm_store_ss(o + 2, _mm_dot_ps(p0, i2));
+        _mm_store_ss(o + 3, _mm_dot_ps(p0, i3));
+
+        _mm_store_ss(o + 4, _mm_dot_ps(p1, i0));
+        _mm_store_ss(o + 5, _mm_dot_ps(p1, i1));
+        _mm_store_ss(o + 6, _mm_dot_ps(p1, i2));
+        _mm_store_ss(o + 7, _mm_dot_ps(p1, i3));
+
+        _mm_store_ss(o + 8, _mm_dot_ps(p2, i0));
+        _mm_store_ss(o + 9, _mm_dot_ps(p2, i1));
+        _mm_store_ss(o + 10, _mm_dot_ps(p2, i2));
+        _mm_store_ss(o + 11, _mm_dot_ps(p2, i3));
+
+        _mm_store_ss(o + 12, _mm_dot_ps(p3, i0));
+        _mm_store_ss(o + 13, _mm_dot_ps(p3, i1));
+        _mm_store_ss(o + 14, _mm_dot_ps(p3, i2));
+        _mm_store_ss(o + 15, _mm_dot_ps(p3, i3));
+    }
+
+    void MultiplyInverseBindPose(Mat4x4 * __restrict matrices, int numPoses, const Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict inverseBindPose)
+    {
+        for (int i = 0; i < numPoses; ++i)
+        {
+            Mat4x4Multiply(matrices + i, poseMatrices + i, inverseBindPose + i);
+        }
     }
 
     void TestMath()
@@ -361,13 +496,13 @@ namespace bg
         {
             const float f = static_cast<float>(i) / 100.0f;
             __m128 s, c;
-            Sincos(&s, &c, _mm_set1_ps(f));
+            _mm_sincos_ps(&s, &c, _mm_set1_ps(f));
 
             const __m128 testSin = _mm_set1_ps(sinf(f));
             const __m128 testCos = _mm_set1_ps(cosf(f));
 
-            const __m128 sinError = Abs(_mm_sub_ps(testSin, s));
-            const __m128 cosError = Abs(_mm_sub_ps(testCos, c));
+            const __m128 sinError = _mm_abs_ps(_mm_sub_ps(testSin, s));
+            const __m128 cosError = _mm_abs_ps(_mm_sub_ps(testCos, c));
 
             const __m128 acceptableError = _mm_set1_ps(0.00001f);
             const __m128 sinMask = _mm_cmpge_ps(sinError, acceptableError);
