@@ -4,6 +4,23 @@
 
 namespace bg
 {
+    static void BuildBindPoses(SkinnedMeshData *md)
+    {
+        int numJoints = md->mNumJoints;
+        Mat4x4 *bindPoseArray = static_cast<Mat4x4 *>(MemAlloc(bc::POOL_MESH, sizeof(Mat4x4) * numJoints));
+        Mat4x4 *invBindPoseArray = static_cast<Mat4x4 *>(MemAlloc(bc::POOL_MESH, sizeof(Mat4x4) * numJoints));
+        Joint *joints = md->mJoints;
+
+        for (int i = 0; i < numJoints; ++i)
+        {
+            Mat4x4FromQuatPos(bindPoseArray + i, &joints[i].mInitial);
+            Mat4x4Invert(invBindPoseArray + i, bindPoseArray + i);
+        }
+
+        md->mBindPose = bindPoseArray;
+        md->mInverseBindPose = invBindPoseArray;
+    }
+
     const SkinnedMeshData *LoadMesh(const char *fileName)
     {
         using namespace bc;
@@ -169,6 +186,8 @@ namespace bg
 
             CHOMP("}");
         }
+
+        BuildBindPoses(md);
 
         return md;
     }

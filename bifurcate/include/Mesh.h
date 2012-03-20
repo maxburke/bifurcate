@@ -23,6 +23,8 @@ namespace bg
         IndexBuffer **mIndexBuffers;
         MeshVertexBuffer **mVertexBuffers;
         MeshWeightedPositionBuffer **mWeightedPositionBuffers;
+        Mat4x4 *mBindPose;
+        Mat4x4 *mInverseBindPose;
     };
 
     const SkinnedMeshData *LoadMesh(const char *fileName);
