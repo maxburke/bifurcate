@@ -42,6 +42,9 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
 
 #define WRAP(X, MIN, MAX) (((X)>=(MAX))?(MIN):(X))
 
+    const int elements = ad->mBaseFrame.mNumElements;
+    void *memory = AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements));
+
     while (GetMessage(&msg, NULL, 0, 0))
     {
         bc::UpdateFrameTime();
@@ -53,8 +56,13 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
         // update loop. Fantastic!
         // void AnimatableComponent::Update(const bg::AnimData *ad) {
             bg::SoaQuatPos out;
-            const int elements = ad->mBaseFrame.mNumElements;
-            out.Initialize(elements, AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements)));
+
+            // These two lines below are commented out because otherwise we leak stack memory
+            // and explode. BOOM. But, otherwise, we would use them as in the commented-out version
+            // in AnimatableComponent::Update
+            // const int elements = ad->mBaseFrame.mNumElements;
+            // out.Initialize(elements, AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements)));
+            out.Initialize(elements, memory);
 
             int numFramesPerAnimation = ad->mNumFrames;
             int frame0 = mFrame0;
