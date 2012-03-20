@@ -48,6 +48,9 @@
       <PreprocessorDefinitions>DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <DisableSpecificWarnings>4996;4710;4514;4711;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -71,6 +74,7 @@
     <ClCompile Include="source\Anim.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="source\Camera.cpp" />
     <ClCompile Include="source\Component.cpp" />
     <ClCompile Include="source\Core.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -100,6 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Anim.h" />
+    <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\Config.h" />
     <ClInclude Include="include\Core.h" />
@@ -108,6 +113,7 @@
     <ClInclude Include="include\MathTypes.h" />
     <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Parser.h" />
+    <ClInclude Include="include\SseMath.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
