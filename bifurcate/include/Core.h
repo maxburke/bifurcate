@@ -100,7 +100,8 @@ namespace bc
         POOL_ANIM,
         POOL_GFX,
         POOL_MESH,
-        POOL_COMPONENT
+        POOL_COMPONENT,
+        POOL_SMALL
     };
 
     void *_InternalMemAlloc(int pool, size_t size, size_t align, int line, const char *file);
