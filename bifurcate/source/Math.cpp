@@ -53,7 +53,7 @@ namespace bg
 
         __m128 axisVector = _mm_load_ps(axis->v);
         __m128 lengthSquared = _mm_dot_ps(axisVector, axisVector);
-        __m128 normalizedAxis = _mm_mul_ps(_mm_mul_ps(lengthSquared, _mm_rsqrt_ps(lengthSquared)), sin);
+        __m128 normalizedAxis = _mm_mul_ps(_mm_mul_ps(axisVector, _mm_rsqrt_ps(lengthSquared)), sin);
         __m128 quatVector = 
             _mm_or_ps(_mm_and_ps(_mm_castsi128_ps(_mm_set_epi32(0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)), normalizedAxis),
                   _mm_and_ps(_mm_castsi128_ps(_mm_set_epi32(0xFFFFFFFF, 0, 0, 0)), cos));
@@ -334,18 +334,35 @@ namespace bg
         out[15] = 1;
     }
 
+    void Mat4x4FromTranslation(Mat4x4 *__restrict mat, const Vec3 * __restrict translation)
+    {
+        float * __restrict out = mat->v;
+        const float x = translation->x;
+        const float y = translation->y;
+        const float z = translation->z;
+        out[0] = 1; out[1] = 0; out[2] = 0; out[3] = x;
+        out[4] = 0; out[5] = 1; out[6] = 0; out[7] = y;
+        out[8] = 0; out[9] = 0; out[10] = 1; out[11] = z;
+        out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
+    }
+
     void Mat4x4FromQuatPos(Mat4x4 * __restrict mat, const QuatPos * __restrict quatPos)
     {
         const float * __restrict pos = quatPos->pos.v;
         float * __restrict out = mat->v;
         Mat4x4FromQuaternion(mat, &quatPos->quat);
+        
+        Vec3 localTranslation = { pos[0], pos[1], pos[2], 1 };
+        __m128 vecTranslation = _mm_load_ps(localTranslation.v);
+        __m128 row0 = _mm_load_ps(&mat->v[0]);
+        __m128 row1 = _mm_load_ps(&mat->v[4]);
+        __m128 row2 = _mm_load_ps(&mat->v[8]);
+        __m128 row3 = _mm_load_ps(&mat->v[12]);
 
-        float x = pos[0];
-        float y = pos[1];
-        float z = pos[2];
-        out[3] = x;
-        out[7] = y;
-        out[11] = z;
+        _mm_store_ss(&out[3], _mm_dotps_ss(row0, vecTranslation));
+        _mm_store_ss(&out[7], _mm_dotps_ss(row1, vecTranslation));
+        _mm_store_ss(&out[11], _mm_dotps_ss(row2, vecTranslation));
+        _mm_store_ss(&out[15], _mm_dotps_ss(row3, vecTranslation));
     }
 
     void Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in)
