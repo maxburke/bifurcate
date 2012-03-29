@@ -8,13 +8,14 @@
 #include "Core.h"
 #include "Gfx.h"
 #include "Mesh.h"
+#include "Camera.h"
 #include <math.h>
 
 namespace bg
 {
     static TCHAR WINDOW_CLASS[] = TEXT("WindowClass");
     static TCHAR WINDOW_NAME[] = TEXT("Magnificent Mike and the Scourge of Dr. Pengoblin");
-    static HWND gWindowHandle;
+    HWND gWindowHandle;
 
     static IDXGISwapChain *gSwapChain;
     static ID3D11Device *gDevice;
@@ -30,8 +31,15 @@ namespace bg
     static ID3D11PixelShader *gDebugMaterial;
 
     static Mat4x4 gProjMatrix;
-
+static FreeCam *gFreeCam;
+static ID3D11VertexShader *gDebugVertexShader;
+static ID3D11InputLayout *gDebugInputLayout;
     #define SAFE_RELEASE(x) if (x) { (x)->Release(); } else (void)0
+
+    void *GfxGetWindowHandle()
+    {
+        return gWindowHandle;
+    }
 
     static LRESULT CALLBACK WindowCallback(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
     {
@@ -101,7 +109,6 @@ namespace bg
 
     static void InitializeSwapChainDesc(DXGI_SWAP_CHAIN_DESC *desc, HWND window, int width, int height)
     {
-        ZeroMemory(desc, sizeof *desc);
         desc->BufferDesc.Width = static_cast<UINT>(width);
         desc->BufferDesc.Height = static_cast<UINT>(height);
         desc->BufferDesc.RefreshRate.Numerator = 60;
@@ -120,7 +127,7 @@ namespace bg
 
     static bool InitializeDevice(HWND window, int width, int height)
     {
-        DXGI_SWAP_CHAIN_DESC swapChainDesc;
+        DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
         InitializeSwapChainDesc(&swapChainDesc, window, width, height);
 
         D3D_FEATURE_LEVEL featureLevel;
@@ -148,8 +155,7 @@ namespace bg
 
         SAFE_RELEASE(backBuffer);
 
-        D3D11_TEXTURE2D_DESC depthDesc;
-        ZeroMemory(&depthDesc, sizeof depthDesc);
+        D3D11_TEXTURE2D_DESC depthDesc = {};
         depthDesc.Width = static_cast<UINT>(width);
         depthDesc.Height = static_cast<UINT>(height);
         depthDesc.MipLevels = 1;
@@ -162,8 +168,7 @@ namespace bg
         if (FAILED(gDevice->CreateTexture2D(&depthDesc, NULL, &gDepthStencil)))
             SignalErrorAndReturn(false, "Unable to create depth/stencil buffer.");
 
-        D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc;
-        ZeroMemory(&depthStencilViewDesc, sizeof depthStencilViewDesc);
+        D3D11_DEPTH_STENCIL_VIEW_DESC depthStencilViewDesc = {};
         depthStencilViewDesc.Format = depthDesc.Format;
         depthStencilViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
         if (FAILED(gDevice->CreateDepthStencilView(gDepthStencil, &depthStencilViewDesc, &gDepthStencilView)))
@@ -171,8 +176,7 @@ namespace bg
 
         gContext->OMSetRenderTargets(1, &gBackBufferView, gDepthStencilView);
 
-        D3D11_VIEWPORT viewport;
-        ZeroMemory(&viewport, sizeof viewport);
+        D3D11_VIEWPORT viewport = {};
         viewport.Width = static_cast<FLOAT>(width);
         viewport.Height = static_cast<FLOAT>(height);
         viewport.MinDepth = 0.0f;
@@ -180,6 +184,15 @@ namespace bg
         viewport.TopLeftX = 0;
         viewport.TopLeftY = 0;
         gContext->RSSetViewports(1, &viewport);
+
+        D3D11_RASTERIZER_DESC rasterizerDesc = {};
+        rasterizerDesc.CullMode = D3D11_CULL_NONE;
+        rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+
+        ID3D11RasterizerState *rasterizerState;
+        gDevice->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
+        gContext->RSSetState(rasterizerState);
+        rasterizerState->Release();
 
         return true;
     }
@@ -201,22 +214,44 @@ namespace bg
             { "TEXCOORD", 2, DXGI_FORMAT_R16_UINT, 0, 10, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
 
-        bc::AutoMemMap vertexShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Skinned.vsh.o");
-        if (!vertexShader.Valid())
-            SignalErrorAndReturn(false, "Unable to map vertex shader.");
+        /// DEBUG VERTEX SHADER ONLY
+        {
+            bc::AutoMemMap debugVertexShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Debug.vsh.o");
+            if (!debugVertexShader.Valid())
+                SignalErrorAndReturn(false, "Unable to map vertex shader.");
 
-        if (FAILED(gDevice->CreateVertexShader(vertexShader.Mem(), vertexShader.Size(), NULL, &gSkinnedVertexShader)))
-            SignalErrorAndReturn(false, "Unable to create vertex shader.");
+            if (FAILED(gDevice->CreateVertexShader(debugVertexShader.Mem(), debugVertexShader.Size(), NULL, &gDebugVertexShader)))
+                SignalErrorAndReturn(false, "Unable to create vertex shader.");
 
-        bc::AutoMemMap pixelShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Skinned.fsh.o");
-        if (!pixelShader.Valid())
-            SignalErrorAndReturn(false, "Unable to map vertex shader.");
+            D3D11_INPUT_ELEMENT_DESC debugInputElements[] = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            };
 
-        if (FAILED(gDevice->CreatePixelShader(pixelShader.Mem(), pixelShader.Size(), NULL, &gDebugMaterial)))
-            SignalErrorAndReturn(false, "Unable to create vertex shader.");
+            if (FAILED(gDevice->CreateInputLayout(debugInputElements, sizeof(debugInputElements) / sizeof(debugInputElements[0]), debugVertexShader.Mem(), debugVertexShader.Size(), &gDebugInputLayout)))
+                SignalErrorAndReturn(false, "Unable to create input layout.");
+        }
+        /// END DEBUG VERTEX SHADER ONLY
 
-        if (FAILED(gDevice->CreateInputLayout(inputElements, sizeof(inputElements) / sizeof(inputElements[0]), vertexShader.Mem(), vertexShader.Size(), &gSkinnedMeshInputLayout)))
-            SignalErrorAndReturn(false, "Unable to create input layout.");
+        {
+            bc::AutoMemMap vertexShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Skinned.vsh.o");
+            if (!vertexShader.Valid())
+                SignalErrorAndReturn(false, "Unable to map vertex shader.");
+
+            if (FAILED(gDevice->CreateVertexShader(vertexShader.Mem(), vertexShader.Size(), NULL, &gSkinnedVertexShader)))
+                SignalErrorAndReturn(false, "Unable to create vertex shader.");
+
+            if (FAILED(gDevice->CreateInputLayout(inputElements, sizeof(inputElements) / sizeof(inputElements[0]), vertexShader.Mem(), vertexShader.Size(), &gSkinnedMeshInputLayout)))
+                SignalErrorAndReturn(false, "Unable to create input layout.");
+        }
+
+        {
+            bc::AutoMemMap pixelShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Skinned.fsh.o");
+            if (!pixelShader.Valid())
+                SignalErrorAndReturn(false, "Unable to map vertex shader.");
+
+            if (FAILED(gDevice->CreatePixelShader(pixelShader.Mem(), pixelShader.Size(), NULL, &gDebugMaterial)))
+                SignalErrorAndReturn(false, "Unable to create vertex shader.");
+        }
 
         D3D11_BUFFER_DESC viewProjDesc = {};
         viewProjDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -272,7 +307,7 @@ namespace bg
             SignalErrorAndReturn(false, "Unable to create skinned mesh render data.");
 
         CreateProjectionMatrix(width, height);
-
+gFreeCam = FreeCamCreate(width, height);
         return true;
     }
 
@@ -290,8 +325,11 @@ namespace bg
 static int frame;
 if ((++frame % 30) == 0)
     OutputDebugStringA("Change this matrix shit below to use a proper view/projection matrix instead of just the projection matrix;\n");
+FreeCamUpdate(gFreeCam);
+Mat4x4 viewMatrix;
+FreeCamFetchViewMatrix(gFreeCam, &viewMatrix);
+Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjMatrix);
 
-        memcpy(mappedResource.pData, &gProjMatrix, sizeof(Mat4x4));
         gContext->Unmap(gViewProjConstants, 0);
     }
 
@@ -328,12 +366,12 @@ if ((++frame % 30) == 0)
         return reinterpret_cast<IndexBuffer *>(indexBuffer);
     }
 
-    MeshVertexBuffer *MeshVertexBufferCreate(int numVertices, MeshVertex *vertices)
+    VertexBuffer *VertexBufferCreate(int numVertices, size_t vertexSize, const void *vertices)
     {
         ID3D11Buffer *vertexBuffer;
 
         D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = numVertices * sizeof(MeshVertex);
+        desc.ByteWidth = static_cast<UINT>(numVertices) * vertexSize;
         desc.Usage = D3D11_USAGE_IMMUTABLE;
         desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
@@ -343,7 +381,7 @@ if ((++frame % 30) == 0)
         if (FAILED(gDevice->CreateBuffer(&desc, &data, &vertexBuffer)))
             SignalErrorAndReturn(NULL, "Unable to create vertex buffer.");
 
-        return reinterpret_cast<MeshVertexBuffer *>(vertexBuffer);
+        return reinterpret_cast<VertexBuffer *>(vertexBuffer);
     }
 
     struct MeshWeightedPositionBuffer
@@ -398,46 +436,99 @@ if ((++frame % 30) == 0)
         return px;
     }
 
+#if 0
     void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData)
     {
-        ID3D11Buffer **indexBuffers = reinterpret_cast<ID3D11Buffer **>(meshData->mIndexBuffers);
-        ID3D11Buffer **vertexBuffers = reinterpret_cast<ID3D11Buffer **>(meshData->mVertexBuffers);
-        MeshWeightedPositionBuffer **pxBuffers = meshData->mWeightedPositionBuffers;
-        int *numTris = meshData->mNumTris;
-        int numMeshes = meshData->mNumMeshes;
+        static bool initializedDebugDrawData = false;
+        static ID3D11Buffer *vertexBuffer;
+        static ID3D11Buffer *indexBuffer;
 
-        size_t matricesAllocSize = sizeof(Mat4x4) * poseData->mNumElements;
-        Mat4x4 *matrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
-        poseData->ConvertToMat4x4(matrices);
+        UNUSED(meshData);
+        UNUSED(poseData);
+        if (!initializedDebugDrawData)
+        {
+            unsigned short indices[] = { 0, 1, 2, 2, 3, 0 };
+            indexBuffer = reinterpret_cast<ID3D11Buffer *>(IndexBufferCreate(6, indices));
+            float vertices[] = {
+                -1, 1, -2,
+                1, 1, -2,
+                1, -1, -2,
+                -1, -1, -2
+            };
+            vertexBuffer = reinterpret_cast<ID3D11Buffer *>(VertexBufferCreate(4, 12, vertices));
+            initializedDebugDrawData = true;
+        }
 
+        gContext->VSSetShader(gDebugVertexShader, NULL, 0);
+        gContext->PSSetShader(gDebugMaterial, NULL, 0);
+        gContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        gContext->IASetInputLayout(gDebugInputLayout);
+
+        ID3D11Buffer *vsBuffers[] = { gViewProjConstants };
+        gContext->VSSetConstantBuffers(0, sizeof vsBuffers / sizeof vsBuffers[0], vsBuffers);
+
+        UINT offsets[1] = { 0 };
+        UINT vertexStrides[1] = { 12 };
+        gContext->IASetVertexBuffers(0, 1, &vertexBuffer, vertexStrides, offsets);
+        gContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+        gContext->DrawIndexed(6, 0, 0);
+    }
+
+#else
+    ////////////////////////////////////////////////////////////////////
+
+    static void UploadMatrices(const Mat4x4 *matrices, int numJoints)
+    {
         D3D11_MAPPED_SUBRESOURCE mappedResource;
+        size_t matricesAllocSize = sizeof(Mat4x4) * numJoints;
         if (FAILED(gContext->Map(gSkinningMatrices, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
             SignalErrorAndReturn(, "Unable to map joint buffer for writing.");
         memcpy(mappedResource.pData, matrices, matricesAllocSize);
         gContext->Unmap(gSkinningMatrices, 0);
-
         ID3D11Buffer *vsBuffers[] = { gViewProjConstants, gSkinningMatrices };
         gContext->VSSetConstantBuffers(0, sizeof vsBuffers / sizeof vsBuffers[0], vsBuffers);
+    }
+
+    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData)
+    {
+        int *numTris = meshData->mNumTris;
+        int numMeshes = meshData->mNumMeshes;
+        int numJoints = poseData->mNumElements;
+
+        size_t matricesAllocSize = sizeof(Mat4x4) * numJoints;
+        Mat4x4 *poseMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
+        Mat4x4 *matrices =  static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
+        poseData->ConvertToMat4x4(poseMatrices);
+        MultiplyInverseBindPose(matrices, numJoints, poseMatrices, meshData->mInverseBindPose);
+        // TODO: DEBUG
+        // Let's see what happens when we use an identity transformation matrix.
+        //MultiplyInverseBindPose(matrices, numJoints, meshData->mBindPose, meshData->mInverseBindPose);
+        UploadMatrices(matrices, numJoints);
+
         gContext->VSSetShader(gSkinnedVertexShader, NULL, 0);
         gContext->PSSetShader(gDebugMaterial, NULL, 0);
-
-        UINT offsets[1] = { 0 };
-        UINT vertexStrides[1] = { sizeof(MeshVertex) };
-
         gContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         gContext->IASetInputLayout(gSkinnedMeshInputLayout);
 
+        ID3D11Buffer **indexBuffers = reinterpret_cast<ID3D11Buffer **>(meshData->mIndexBuffers);
+        ID3D11Buffer **vertexBuffers = reinterpret_cast<ID3D11Buffer **>(meshData->mVertexBuffers);
+        MeshWeightedPositionBuffer **pxBuffers = meshData->mWeightedPositionBuffers;
+
         for (int i = 0; i < numMeshes; ++i)
         {
+            UINT offsets[1] = { 0 };
+            UINT vertexStrides[1] = { sizeof(MeshVertex) };
             ID3D11Buffer *vertexBuffer[1] = { vertexBuffers[i] };
-            gContext->IASetIndexBuffer(indexBuffers[i], DXGI_FORMAT_R16_UINT, 0);
             gContext->IASetVertexBuffers(0, 1, vertexBuffer, vertexStrides, offsets);
+            gContext->IASetIndexBuffer(indexBuffers[i], DXGI_FORMAT_R16_UINT, 0);
+
             ID3D11ShaderResourceView *shaderResourceViews[] = {
                 pxBuffers[i]->mWeightedPositionsRV,
                 pxBuffers[i]->mJointIndicesRV
             };
             gContext->VSSetShaderResources(0, sizeof shaderResourceViews / sizeof shaderResourceViews[i], shaderResourceViews);
-            gContext->DrawIndexed(static_cast<UINT>(numTris[i]), 0, 0);
+            gContext->DrawIndexed(static_cast<UINT>(numTris[i]) * 3, 0, 0);
         }
     }
+#endif
 }

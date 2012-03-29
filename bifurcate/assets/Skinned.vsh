@@ -28,12 +28,6 @@ struct vs_output
 vs_output main(in vs_input input) {
     vs_output o;
     o.uv = input.uv;
-    float4 position = float4(gWeightedPositions.Load(input.firstWeight).xyz, 1);
-    o.position = mul(position, transpose(gViewProjection));
-    return o;
-/*
-    vs_output o;
-    o.uv = input.uv;
     float4 position = float4(0, 0, 0, 1);
     for (uint i = input.firstWeight, e = input.firstWeight + input.numWeights; i < e; ++i)
     {
@@ -45,6 +39,5 @@ vs_output main(in vs_input input) {
     }
     o.position = mul(float4(position.xyz, 1), gViewProjection);
     return o;
-    */
 }
 
