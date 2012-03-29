@@ -4,7 +4,6 @@
 namespace bg
 {
     struct Mat4x4;
-    struct Vector3;
     struct FreeCam;
 
     FreeCam *FreeCamCreate(int windowWidth, int windowHeight);

@@ -4,11 +4,7 @@
 #include "Camera.h"
 #include "MathTypes.h"
 #include "SseMath.h"
-
-#pragma warning(push, 0)
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#pragma warning(pop)
+#include "Controller.h"
 
 namespace bg
 {
@@ -29,7 +25,6 @@ namespace bg
         freeCam->mView.SetIdentity();
         freeCam->mHalfWindowHeight = windowHeight / 2;
         freeCam->mHalfWindowWidth = windowWidth / 2;
-        SetCursorPos(freeCam->mHalfWindowWidth, freeCam->mHalfWindowHeight);
 
         return freeCam;
     }
@@ -41,17 +36,12 @@ namespace bg
 
     static void UpdateViewRotation(FreeCam *freeCam)
     {
-        // TODO: This will probably need to be updated if/when a central control scheme 
-        // management suite is built.
-        POINT p;
-        GetCursorPos(&p);
-        int initialX = freeCam->mHalfWindowWidth;
-        int initialY = freeCam->mHalfWindowHeight;
+        const bc::Controller *controller = bc::ControllerGetState(bc::CONTROLLER_KEYBOARD_MOUSE);
 
-        __m128 dx = _mm_set_ss(static_cast<float>(p.x - initialX));
-        __m128 dy = _mm_set_ss(static_cast<float>(p.y - initialY));
+        __m128 dx = _mm_set_ss(controller->mRightX);
+        __m128 dy = _mm_set_ss(controller->mRightY);
 
-        const __m128 ROTATION_SPEED = _mm_set_ss(0.01f);
+        const __m128 ROTATION_SPEED = _mm_set_ss(0.25f);
         __m128 rotX = _mm_add_ss(_mm_set_ss(freeCam->mRotation.x), _mm_mul_ss(dx, ROTATION_SPEED));
         __m128 rotY = _mm_add_ss(_mm_set_ss(freeCam->mRotation.y), _mm_mul_ss(dy, ROTATION_SPEED));
 
@@ -68,24 +58,14 @@ namespace bg
     {
         // TODO: This will probably need to be updated if/when a central control scheme 
         // management suite is built.
-        BYTE keys[256];
-        GetKeyboardState(keys);
-
         Vec3 displacement = {};
 
-        if (keys['W'])
-            displacement.z -= 1;
+        const bc::Controller *controller = bc::ControllerGetState(bc::CONTROLLER_KEYBOARD_MOUSE);
 
-        if (keys['S'])
-            displacement.z += 1;
+        displacement.z -= controller->mLeftY;
+        displacement.x += controller->mLeftX;
 
-        if (keys['A'])
-            displacement.x -= 1;
-
-        if (keys['D'])
-            displacement.x += 1;
-
-        if (displacement.x == 0 || displacement.z == 0)
+        if (displacement.x == 0 && displacement.z == 0)
             return;
 
         __m128 v = _mm_load_ps(&displacement.v[0]);
@@ -95,21 +75,22 @@ namespace bg
         Mat4x4 rotation;
         bg::Mat4x4FromQuaternion(&rotation, &freeCam->mQuaternion);
         
-        const float scale = 4.0f;
+        const float scale = 0.1f;
         __m128 scaledDisplacement = _mm_mul_ps(normalized, _mm_set1_ps(scale));
         __m128 xDispTransformed = _mm_dotps_ss(scaledDisplacement, _mm_load_ps(&rotation.v[0]));
         __m128 yDispTransformed = _mm_dotps_ss(scaledDisplacement, _mm_load_ps(&rotation.v[4]));
         __m128 zDispTransformed = _mm_dotps_ss(scaledDisplacement, _mm_load_ps(&rotation.v[8]));
 
-        _mm_store_ps(&freeCam->mPosition.x, _mm_add_ps(xDispTransformed, _mm_load_ss(&freeCam->mPosition.x)));
-        _mm_store_ps(&freeCam->mPosition.y, _mm_add_ps(yDispTransformed, _mm_load_ss(&freeCam->mPosition.y)));
-        _mm_store_ps(&freeCam->mPosition.z, _mm_add_ps(zDispTransformed, _mm_load_ss(&freeCam->mPosition.z)));
+        _mm_store_ss(&freeCam->mPosition.x, _mm_add_ps(xDispTransformed, _mm_load_ss(&freeCam->mPosition.x)));
+        _mm_store_ss(&freeCam->mPosition.y, _mm_add_ps(yDispTransformed, _mm_load_ss(&freeCam->mPosition.y)));
+        _mm_store_ss(&freeCam->mPosition.z, _mm_add_ps(zDispTransformed, _mm_load_ss(&freeCam->mPosition.z)));
     }
 
     static void GenerateViewMatrix(FreeCam *freeCam)
     {
         Vec3 x = { 0, -1, 0 };
         Vec3 y = { -1, 0, 0 };
+
         Quaternion xRotationQuaternion = QuaternionFromAxisAngle(&x, freeCam->mRotation.x);
         Quaternion yRotationQuaternion = QuaternionFromAxisAngle(&y, freeCam->mRotation.y);
         Quaternion cameraQuaternion = QuaternionMultiply(&xRotationQuaternion, &yRotationQuaternion);
@@ -128,8 +109,6 @@ namespace bg
         UpdateViewRotation(freeCam);
         UpdatePosition(freeCam);
         GenerateViewMatrix(freeCam);
-
-        SetCursorPos(freeCam->mHalfWindowWidth, freeCam->mHalfWindowHeight);
     }
 
     void FreeCamFetchViewMatrix(const FreeCam *freeCam, Mat4x4 *out)
