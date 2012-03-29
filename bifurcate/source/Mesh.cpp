@@ -60,7 +60,7 @@ namespace bg
 
         md->mJoints = static_cast<Joint *>(MemAlloc(POOL_MESH, sizeof(Joint) * md->mNumJoints));
         md->mIndexBuffers = static_cast<IndexBuffer **>(MemAlloc(POOL_MESH, sizeof(IndexBuffer *) * md->mNumMeshes));
-        md->mVertexBuffers = static_cast<MeshVertexBuffer **>(MemAlloc(POOL_MESH, sizeof(MeshVertexBuffer *) * md->mNumMeshes));
+        md->mVertexBuffers = static_cast<VertexBuffer **>(MemAlloc(POOL_MESH, sizeof(VertexBuffer *) * md->mNumMeshes));
         md->mWeightedPositionBuffers = static_cast<MeshWeightedPositionBuffer **>(MemAlloc(POOL_MESH, sizeof(MeshWeightedPositionBuffer *) * md->mNumMeshes));
         md->mNumTris = static_cast<int *>(MemAlloc(POOL_MESH, sizeof(int) * md->mNumMeshes));
 
@@ -126,7 +126,7 @@ namespace bg
                 vertices[ii].mWeightIndex = static_cast<short>(weightIndex);
                 vertices[ii].mWeightElement = static_cast<short>(weightElem);
             }
-            md->mVertexBuffers[i] = MeshVertexBufferCreate(numverts, vertices);
+            md->mVertexBuffers[i] = VertexBufferCreate(numverts, sizeof(MeshVertex), vertices);
             marker.Reset();
 
             PARSE_INT(numtris);

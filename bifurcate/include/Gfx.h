@@ -6,7 +6,7 @@
 namespace bg
 {
     struct IndexBuffer;
-    struct MeshVertexBuffer;
+    struct VertexBuffer;
     struct MeshWeightedPositionBuffer;
     struct Material;
     struct SkinnedMeshData;
@@ -30,9 +30,10 @@ namespace bg
     void GfxShutdown();
     void GfxBeginScene();
     void GfxEndScene();
+    void *GfxGetWindowHandle();
 
     IndexBuffer *IndexBufferCreate(int numIndices, unsigned short *indices);
-    MeshVertexBuffer *MeshVertexBufferCreate(int numVertices, MeshVertex *vertices);
+    VertexBuffer *VertexBufferCreate(int numVertices, size_t vertexSize, const void *vertices);
     MeshWeightedPositionBuffer *MeshWeightedPositionBufferCreate(int numPositions, Vec4 *weightedPositions, unsigned char *jointIndices);
     void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData);
 

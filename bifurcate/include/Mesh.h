@@ -21,7 +21,7 @@ namespace bg
         Joint *mJoints;
         int *mNumTris;
         IndexBuffer **mIndexBuffers;
-        MeshVertexBuffer **mVertexBuffers;
+        VertexBuffer **mVertexBuffers;
         MeshWeightedPositionBuffer **mWeightedPositionBuffers;
         Mat4x4 *mBindPose;
         Mat4x4 *mInverseBindPose;
