@@ -10,7 +10,7 @@
 #include "Gfx.h"
 #include "Anim.h"
 #include "Mesh.h"
-
+#include "Controller.h"
 #include "Component.h"
 
 void RunTests();
@@ -26,6 +26,9 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     bc::UpdateFrameTime();
 
     if (!bg::GfxInitialize(instance, 1280, 720))
+        return 1;
+
+    if (!bc::ControllerInitialize())
         return 1;
 
     RunTests();
@@ -48,7 +51,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     while (GetMessage(&msg, NULL, 0, 0))
     {
         bc::UpdateFrameTime();
-
+        bc::ControllerUpdate();
+        
         TranslateMessage(&msg);
         DispatchMessage(&msg);
 
@@ -91,6 +95,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     }
 
     bg::GfxShutdown();
+    bc::ControllerShutdown();
 
     return 0;
 }
