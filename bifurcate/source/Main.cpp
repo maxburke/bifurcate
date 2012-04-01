@@ -48,14 +48,19 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     const int elements = ad->mBaseFrame.mNumElements;
     void *memory = AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements));
 
-    while (GetMessage(&msg, NULL, 0, 0))
+    bool applicationDone = false;
+    while (!applicationDone)
     {
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            applicationDone = msg.message == WM_QUIT;                
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
         bc::UpdateFrameTime();
         bc::ControllerUpdate();
-        
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-
+     
         // The code between the two comments below is essentially the animatable component
         // update loop. Fantastic!
         // void AnimatableComponent::Update(const bg::AnimData *ad) {
@@ -90,7 +95,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
 
         UNUSED(md);
         bg::GfxBeginScene();
-        bg::DrawSkinnedMesh(md, &out);
+        bg::DrawSkinnedMesh(md, ad, &out);
         bg::GfxEndScene();
     }
 
