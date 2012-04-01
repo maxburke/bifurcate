@@ -10,6 +10,7 @@ namespace bg
     struct MeshWeightedPositionBuffer;
     struct Material;
     struct SkinnedMeshData;
+    struct AnimData;
 
     struct MeshVertex
     {
@@ -35,7 +36,7 @@ namespace bg
     IndexBuffer *IndexBufferCreate(int numIndices, unsigned short *indices);
     VertexBuffer *VertexBufferCreate(int numVertices, size_t vertexSize, const void *vertices);
     MeshWeightedPositionBuffer *MeshWeightedPositionBufferCreate(int numPositions, Vec4 *weightedPositions, unsigned char *jointIndices);
-    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData);
+    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const AnimData *animData, const SoaQuatPos *poseData);
 
     const int MAX_NUM_JOINTS = 256;
 }
