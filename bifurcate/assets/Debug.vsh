@@ -17,7 +17,7 @@ struct vs_output
 
 vs_output main(in vs_in input) {
     vs_output o;
-    o.pos = mul(float4(input.pos, 1), gViewProjection);
+    o.pos = mul(float4(input.pos, 1), transpose(gViewProjection));
     o.uv = float2(0, 0);
     return o;
 }

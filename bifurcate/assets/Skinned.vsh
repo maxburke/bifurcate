@@ -37,7 +37,8 @@ vs_output main(in vs_input input) {
         float weight = weightedPosition.w;
         position += weight * mul(float4(weightedPosition.xyz, 1), mat);
     }
-    o.position = mul(float4(position.xyz, 1), gViewProjection);
+
+    o.position = mul(float4(position.xyz, 1), transpose(gViewProjection));
     return o;
 }
 
