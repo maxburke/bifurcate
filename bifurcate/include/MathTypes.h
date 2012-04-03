@@ -119,12 +119,12 @@ namespace bg
     Quaternion QuaternionUncompress(const CompressedQuaternion &cq);
     Quaternion QuaternionFromAxisAngle(const Vec3 * __restrict axis, float angle);
     Quaternion QuaternionMultiply(const Quaternion * __restrict q1, const Quaternion * __restrict q2);
-    void Mat4x4Multiply(Mat4x4 * __restrict out, const Mat4x4 * __restrict lhs, const Mat4x4 * __restrict rhs);
-    void Mat4x4FromQuaternion(Mat4x4 * __restrict mat, const Quaternion *__restrict q);
-    void Mat4x4FromTranslation(Mat4x4 *__restrict mat, const Vec3 * __restrict translation);
+    Mat4x4 *Mat4x4Multiply(Mat4x4 * __restrict out, const Mat4x4 * __restrict lhs, const Mat4x4 * __restrict rhs);
+    Mat4x4 *Mat4x4FromQuaternion(Mat4x4 * __restrict mat, const Quaternion *__restrict q);
+    Mat4x4 *Mat4x4FromTranslation(Mat4x4 *__restrict mat, const Vec3 * __restrict translation);
 
-    void Mat4x4FromQuatPos(Mat4x4 * __restrict out, const QuatPos * __restrict in);
-    void Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in);
+    Mat4x4 *Mat4x4FromQuatPos(Mat4x4 * __restrict out, const QuatPos * __restrict in);
+    Mat4x4 *Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in);
     void MultiplyInverseBindPose(Mat4x4 * __restrict matrices, int numPoses, const Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict inverseBindPose);
 }
 

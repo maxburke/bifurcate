@@ -291,7 +291,7 @@ namespace bg
         }
     }
 
-    void Mat4x4FromQuaternion(Mat4x4 * __restrict mat, const Quaternion *__restrict q)
+    Mat4x4 *Mat4x4FromQuaternion(Mat4x4 * __restrict mat, const Quaternion *__restrict q)
     {
         const float * __restrict quat = q->v;
         float * __restrict out = mat->v;
@@ -332,40 +332,36 @@ namespace bg
         out[13] = 0;
         out[14] = 0;
         out[15] = 1;
+
+        return mat;
     }
 
-    void Mat4x4FromTranslation(Mat4x4 *__restrict mat, const Vec3 * __restrict translation)
+    Mat4x4 *Mat4x4FromTranslation(Mat4x4 *__restrict mat, const Vec3 * __restrict translation)
     {
         float * __restrict out = mat->v;
         const float x = translation->x;
         const float y = translation->y;
         const float z = translation->z;
-        out[0] = 1; out[1] = 0; out[2] = 0; out[3] = x;
-        out[4] = 0; out[5] = 1; out[6] = 0; out[7] = y;
-        out[8] = 0; out[9] = 0; out[10] = 1; out[11] = z;
-        out[12] = 0; out[13] = 0; out[14] = 0; out[15] = 1;
+        out[0] = 1; out[1] = 0; out[2] = 0; out[3] = 0;
+        out[4] = 0; out[5] = 1; out[6] = 0; out[7] = 0;
+        out[8] = 0; out[9] = 0; out[10] = 1; out[11] = 0;
+        out[12] = x; out[13] = y; out[14] = z; out[15] = 1;
+
+        return mat;
     }
 
-    void Mat4x4FromQuatPos(Mat4x4 * __restrict mat, const QuatPos * __restrict quatPos)
+    Mat4x4 *Mat4x4FromQuatPos(Mat4x4 * __restrict mat, const QuatPos * __restrict quatPos)
     {
+        Mat4x4 rotation;
         const float * __restrict pos = quatPos->pos.v;
-        float * __restrict out = mat->v;
-        Mat4x4FromQuaternion(mat, &quatPos->quat);
-        
-        Vec3 localTranslation = { pos[0], pos[1], pos[2], 1 };
-        __m128 vecTranslation = _mm_load_ps(localTranslation.v);
-        __m128 row0 = _mm_load_ps(&mat->v[0]);
-        __m128 row1 = _mm_load_ps(&mat->v[4]);
-        __m128 row2 = _mm_load_ps(&mat->v[8]);
-        __m128 row3 = _mm_load_ps(&mat->v[12]);
+        Mat4x4FromQuaternion(&rotation, &quatPos->quat);
 
-        _mm_store_ss(&out[3], _mm_dotps_ss(row0, vecTranslation));
-        _mm_store_ss(&out[7], _mm_dotps_ss(row1, vecTranslation));
-        _mm_store_ss(&out[11], _mm_dotps_ss(row2, vecTranslation));
-        _mm_store_ss(&out[15], _mm_dotps_ss(row3, vecTranslation));
+        Vec3 localTranslation = { pos[0], pos[1], pos[2], 1 };
+        Mat4x4 translation;
+        return Mat4x4Multiply(mat, &rotation, Mat4x4FromTranslation(&translation, &localTranslation));
     }
 
-    void Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in)
+    Mat4x4 *Mat4x4Invert(Mat4x4 * __restrict out, const Mat4x4 * __restrict in)
     {
         // This matrix inversion routine is from Intel's P3 optimization material.
         // ftp://download.intel.com/design/PentiumIII/sml/24504301.pdf
@@ -458,9 +454,11 @@ namespace bg
         minor3 = _mm_mul_ps(det, minor3);
         _mm_storel_pi((__m64*)(dst+12), minor3);
         _mm_storeh_pi((__m64*)(dst+14), minor3);
+
+        return out;
     }
 
-    __forceinline void Mat4x4Multiply(Mat4x4 * __restrict out, const Mat4x4 * __restrict lhs, const Mat4x4 * __restrict rhs)
+    __forceinline Mat4x4 *Mat4x4Multiply(Mat4x4 * __restrict out, const Mat4x4 * __restrict lhs, const Mat4x4 * __restrict rhs)
     {
         const float * __restrict l = lhs->v;
         const float * __restrict r = rhs->v;
@@ -497,6 +495,8 @@ namespace bg
         _mm_store_ss(o + 13, _mm_dot_ps(p3, i1));
         _mm_store_ss(o + 14, _mm_dot_ps(p3, i2));
         _mm_store_ss(o + 15, _mm_dot_ps(p3, i3));
+
+        return out;
     }
 
     void MultiplyInverseBindPose(Mat4x4 * __restrict matrices, int numPoses, const Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict inverseBindPose)
