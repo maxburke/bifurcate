@@ -38,8 +38,8 @@ namespace bg
     {
         const bc::Controller *controller = bc::ControllerGetState(bc::CONTROLLER_KEYBOARD_MOUSE);
 
-        __m128 dx = _mm_set_ss(controller->mRightX);
-        __m128 dy = _mm_set_ss(controller->mRightY);
+        __m128 dx = _mm_set_ss(-controller->mRightX);
+        __m128 dy = _mm_set_ss(-controller->mRightY);
 
         const __m128 ROTATION_SPEED = _mm_set_ss(0.25f);
         __m128 rotX = _mm_add_ss(_mm_set_ss(freeCam->mRotation.x), _mm_mul_ss(dx, ROTATION_SPEED));
@@ -75,7 +75,7 @@ namespace bg
         Mat4x4 rotation;
         bg::Mat4x4FromQuaternion(&rotation, &freeCam->mQuaternion);
         
-        const float scale = 0.1f;
+        const float scale = 4.f;
         __m128 scaledDisplacement = _mm_mul_ps(normalized, _mm_set1_ps(scale));
         __m128 xDispTransformed = _mm_dotps_ss(scaledDisplacement, _mm_load_ps(&rotation.v[0]));
         __m128 yDispTransformed = _mm_dotps_ss(scaledDisplacement, _mm_load_ps(&rotation.v[4]));
