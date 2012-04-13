@@ -34,8 +34,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     RunTests();
 
     //bx::load_map("z:/doom3data/maps/game/recycling1.proc");
-    const bg::AnimData *ad = bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/walk7.md5anim");
-    const bg::SkinnedMeshData *md = bg::LoadMesh("z:/doom3data/models/md5/monsters/hellknight/hellknight.md5mesh");
+    const bg::AnimData *ad = bg::LoadAnim("z:/doom3data/models/md5/monsters/cyberdemon/walk3.md5anim");
+    const bg::SkinnedMeshData *md = bg::LoadMesh("z:/doom3data/models/md5/monsters/cyberdemon/cyberdemon.md5mesh");
 
     MSG msg;
 
@@ -87,7 +87,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
             }
 
             bg::InterpolateAnimationFrames(&out, ad, frame0, frame1, currentLerpFactor);
-
             mFrame0 = frame0;
             mFrame1 = frame1;
             mCurrentLerpFactor = currentLerpFactor;
