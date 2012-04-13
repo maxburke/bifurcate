@@ -7,6 +7,7 @@
 #include "Config.h"
 #include "Core.h"
 #include "Gfx.h"
+#include "Anim.h"
 #include "Mesh.h"
 #include "Camera.h"
 #include <math.h>
@@ -286,9 +287,9 @@ static ID3D11InputLayout *gDebugInputLayout;
 
         gProjMatrix.v[0] = xscale;
         gProjMatrix.v[5] = yscale;
-        gProjMatrix.v[10] = zf / (zf - zn);
-        gProjMatrix.v[11] = 1;
-        gProjMatrix.v[14] = -zn * zf / (zf - zn);
+        gProjMatrix.v[10] = -zf / (zf - zn);
+        gProjMatrix.v[11] = -1;
+        gProjMatrix.v[14] = zn * zf / (zn - zf);
     }
 
     bool GfxInitialize(void *instance, int width, int height)
@@ -436,8 +437,100 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         return px;
     }
 
-#if 0
-    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData)
+#define USE_DEBUG_SKELETON_RENDER 1
+#define USE_DEBUG_QUAD_DRAW 0
+#if USE_DEBUG_SKELETON_RENDER
+
+    static void TransformJoints(Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict rawMatrices, const AnimData *animData)
+    {
+        int numJoints = animData->mNumJoints;
+        const AnimJoint *joints = animData->mJoints;
+
+        memcpy(poseMatrices, rawMatrices, numJoints * sizeof(Mat4x4));
+
+        for (int i = 1; i < numJoints; ++i)
+        {
+            int parent = joints[i].mParentIndex;
+            //Mat4x4 pose(poseMatrices[i]);
+            Mat4x4Multiply(poseMatrices + i, poseMatrices + i, poseMatrices + parent);
+        }
+    }
+
+    void DrawSkinnedMesh(const SkinnedMeshData *, const AnimData *animData, const SoaQuatPos *poseData)
+    {
+        int numJoints = poseData->mNumElements;
+
+        ID3D11Buffer *vertexBuffer = NULL;
+        ID3D11Buffer *indexBuffer = NULL;
+        D3D11_BUFFER_DESC desc = {};
+        desc.ByteWidth = static_cast<UINT>(numJoints - 1) * sizeof(float) * 3;
+        desc.Usage = D3D11_USAGE_DYNAMIC;
+        desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        if (FAILED(gDevice->CreateBuffer(&desc, NULL, &vertexBuffer)))
+            __debugbreak();
+
+        const int numIndices = (numJoints - 1) * 2;
+        unsigned short *indices = static_cast<unsigned short *>(AllocaAligned(16, sizeof(unsigned short) * numIndices));
+        for (int i = 0; i < numIndices; ++i)
+            indices[i] = static_cast<unsigned short>(i);
+        indexBuffer = reinterpret_cast<ID3D11Buffer *>(IndexBufferCreate(numIndices, indices));
+
+        size_t matricesAllocSize = sizeof(Mat4x4) * numJoints;
+
+        Mat4x4 *poseMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
+        Mat4x4 *rawMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
+        poseData->ConvertToMat4x4(rawMatrices);
+
+        TransformJoints(poseMatrices, rawMatrices, animData);
+
+        // TODO: You might need to flip the order of this multiplication, try inverseBindPose * poseMatrices instead!!
+//        MultiplyInverseBindPose(matrices, numJoints, meshData->mInverseBindPose, poseMatrices);
+
+        const AnimJoint *joints = animData->mJoints;
+        size_t positionBufferSize = numIndices * 3 * sizeof(float);
+        float *positionBuffer = static_cast<float *>(AllocaAligned(16, positionBufferSize));
+
+        // When rendering the skeletons you just need to use the pose matrices, but for the skinned
+        // models (below), you have to multiply by the inverse bind pose.
+        Mat4x4 *mat = poseMatrices;
+        for (int i = 1, positionIndex = 0; i < numJoints; ++i)
+        {
+            int parent = joints[i].mParentIndex;
+            positionBuffer[positionIndex++] = mat[parent].v[12];
+            positionBuffer[positionIndex++] = mat[parent].v[13];
+            positionBuffer[positionIndex++] = mat[parent].v[14];
+            positionBuffer[positionIndex++] = mat[i].v[12];
+            positionBuffer[positionIndex++] = mat[i].v[13];
+            positionBuffer[positionIndex++] = mat[i].v[14];
+        }
+
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        if (FAILED(gContext->Map(vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
+            __debugbreak();
+        memcpy(mappedResource.pData, positionBuffer, positionBufferSize);
+        gContext->Unmap(vertexBuffer, 0);
+
+        gContext->VSSetShader(gDebugVertexShader, NULL, 0);
+        gContext->PSSetShader(gDebugMaterial, NULL, 0);
+        gContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+        gContext->IASetInputLayout(gDebugInputLayout);
+
+        gContext->VSSetConstantBuffers(0, 1, &gViewProjConstants);
+
+        UINT offsets[1] = { 0 };
+        UINT vertexStrides[1] = { sizeof(float) * 3 };
+        gContext->IASetVertexBuffers(0, 1, &vertexBuffer, vertexStrides, offsets);
+        gContext->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+        gContext->DrawIndexed(static_cast<UINT>(numIndices), 0, 0);
+        
+        vertexBuffer->Release();
+        indexBuffer->Release();
+    }
+
+#elif USE_DEBUG_QUAD_DRAW
+
+    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const AnimData *, const SoaQuatPos *poseData)
     {
         static bool initializedDebugDrawData = false;
         static ID3D11Buffer *vertexBuffer;
@@ -489,7 +582,19 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         gContext->VSSetConstantBuffers(0, sizeof vsBuffers / sizeof vsBuffers[0], vsBuffers);
     }
 
-    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const SoaQuatPos *poseData)
+    static void TransformJoints(Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict rawMatrices, const AnimData *animData)
+    {
+        int numJoints = animData->mNumJoints;
+        const AnimJoint *joints = animData->mJoints;
+
+        for (int i = 1; i < numJoints; ++i)
+        {
+            int parent = joints[i].mParentIndex;
+            Mat4x4Multiply(poseMatrices + i, rawMatrices + i, rawMatrices + parent);
+        }
+    }
+
+    void DrawSkinnedMesh(const SkinnedMeshData *meshData, const AnimData *animData, const SoaQuatPos *poseData)
     {
         int *numTris = meshData->mNumTris;
         int numMeshes = meshData->mNumMeshes;
@@ -497,8 +602,10 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
 
         size_t matricesAllocSize = sizeof(Mat4x4) * numJoints;
         Mat4x4 *poseMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
+        Mat4x4 *rawMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
         Mat4x4 *matrices =  static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
-        poseData->ConvertToMat4x4(poseMatrices);
+        poseData->ConvertToMat4x4(rawMatrices);
+        TransformJoints(poseMatrices, rawMatrices, animData);
         MultiplyInverseBindPose(matrices, numJoints, poseMatrices, meshData->mInverseBindPose);
         // TODO: DEBUG
         // Let's see what happens when we use an identity transformation matrix.
