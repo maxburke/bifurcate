@@ -116,6 +116,7 @@ namespace bg
         Vec3 max;
     };
 
+    Vec3 *Vec3Transform(Vec3 * __restrict out, const Vec3 * __restrict in, const Mat4x4 * __restrict matrix);
     Quaternion QuaternionUncompress(const CompressedQuaternion &cq);
     Quaternion QuaternionFromAxisAngle(const Vec3 * __restrict axis, float angle);
     Quaternion QuaternionMultiply(const Quaternion * __restrict q1, const Quaternion * __restrict q2);

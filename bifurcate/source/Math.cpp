@@ -6,6 +6,25 @@
 
 namespace bg
 {
+    Vec3 *Vec3Transform(Vec3 * __restrict out, const Vec3 * __restrict in, const Mat4x4 * __restrict matrix)
+    {
+        const float * __restrict r = matrix->v;
+        __m128 i0 = _mm_load_ps(r + 0);
+        __m128 i1 = _mm_load_ps(r + 4);
+        __m128 i2 = _mm_load_ps(r + 8);
+        __m128 i3 = _mm_load_ps(r + 12);
+        __m128 vec = _mm_load_ps(in->v);
+
+        _MM_TRANSPOSE4_PS(i0, i1, i2, i3);
+
+        _mm_store_ss(&out->v[0], _mm_dotps_ss(vec, i0));
+        _mm_store_ss(&out->v[1], _mm_dotps_ss(vec, i1));
+        _mm_store_ss(&out->v[2], _mm_dotps_ss(vec, i2));
+        _mm_store_ss(&out->v[3], _mm_dotps_ss(vec, i3));
+
+        return out;
+    }
+
     Quaternion QuaternionUncompress(const CompressedQuaternion &cq)
     {
         Quaternion q = { cq.x, cq.y, cq.z, sqrt(fabs(1.0f - (cq.x * cq.x + cq.y * cq.y + cq.z * cq.z))) };
@@ -247,6 +266,11 @@ namespace bg
         float *pY = this->mY;
         float *pZ = this->mZ;
 
+        Mat4x4 rotation;
+        Mat4x4 translation;
+        rotation.SetIdentity();
+        translation.SetIdentity();
+
         for (int i = 0, e = this->mNumElements; i < e; ++i, ++matrices)
         {
             float qx = pQx[i];
@@ -269,25 +293,23 @@ namespace bg
             float qzqz = qz * qz;
             float qzqw = qz * qw;
 
-            matrices->v[0] = 1.0f - 2.0f * (qyqy + qzqz);
-            matrices->v[1] =        2.0f * (qxqy - qzqw);
-            matrices->v[2] =        2.0f * (qxqz + qyqw);
-            matrices->v[3] = x;
+            rotation.v[0] = 1.0f - 2.0f * (qyqy + qzqz);
+            rotation.v[1] =        2.0f * (qxqy - qzqw);
+            rotation.v[2] =        2.0f * (qxqz + qyqw);
 
-            matrices->v[4] =        2.0f * (qxqy + qzqw);
-            matrices->v[5] = 1.0f - 2.0f * (qxqx + qzqz);
-            matrices->v[6] =        2.0f * (qyqz - qxqw);
-            matrices->v[7] = y;
+            rotation.v[4] =        2.0f * (qxqy + qzqw);
+            rotation.v[5] = 1.0f - 2.0f * (qxqx + qzqz);
+            rotation.v[6] =        2.0f * (qyqz - qxqw);
             
-            matrices->v[8] =        2.0f * (qxqz - qyqw);
-            matrices->v[9] =        2.0f * (qyqz + qxqw);
-            matrices->v[10] = 1.0f - 2.0f * (qxqx + qyqy);
-            matrices->v[11] = z;
+            rotation.v[8] =        2.0f * (qxqz - qyqw);
+            rotation.v[9] =        2.0f * (qyqz + qxqw);
+            rotation.v[10] = 1.0f - 2.0f * (qxqx + qyqy);
 
-            matrices->v[12] = 0;
-            matrices->v[13] = 0;
-            matrices->v[14] = 0;
-            matrices->v[15] = 1;
+            translation.v[12] = x;
+            translation.v[13] = y;
+            translation.v[14] = z;
+
+            Mat4x4Multiply(matrices, &rotation, &translation);
         }
     }
 
