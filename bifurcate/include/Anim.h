@@ -35,7 +35,7 @@ namespace bg
         int mFrameRate;
         float mInvClockTicksPerFrame;
         AnimJoint *mJoints;
-        int *mComponentIndices;
+        intptr_t *mComponentIndices;
         BBox *mBoundingBoxes;
         SoaQuatPos mBaseFrame;
         float *mComponentFrames;

@@ -66,7 +66,7 @@ namespace bg
         CHOMP("{");
 
         AnimJoint *joints = ad->mJoints;
-        int *componentIndexPtr = ad->mComponentIndices;
+        intptr_t *componentIndexPtr = ad->mComponentIndices;
         SoaQuatPos *baseFrame = &ad->mBaseFrame;
         for (int i = 0, e = numJoints; i < e; ++i)
         {
@@ -268,14 +268,15 @@ namespace bg
 
         for (int i = 0; i < numComponents; ++i)
         {
-            const int index = indices[i];
+            const intptr_t index = indices[i];
             const float f1 = frameOneComponents[i];
             const float f2 = frameTwoComponents[i];
             frameOneBase[index] = f1;
             frameTwoBase[index] = f2;
         }
 
+        // TODO: Is this necessary? We only ever unpack quaternion x, y, z components, leaving W.
+        //interpolated->UncompressQw();
         interpolated->Interpolate(&frameOne, &frameTwo, lerp);
     }
 }
-
