@@ -21,6 +21,58 @@ namespace bg
         md->mInverseBindPose = invBindPoseArray;
     }
 
+    static void ReweightVertices(const MeshVertex *vertices, int numverts, Vec4 *weightedPositions, unsigned char *jointIndices)
+    {
+        for (int i = 0; i < numverts; ++i)
+        {
+            short weightElement = vertices[i].mWeightElement;
+            short weightIndex = vertices[i].mWeightIndex;
+
+            // This could be done in a single pass but it was easier to write
+            // this way. Besides most joints with >= 4 influences tend to have
+            // five as the most common weight, not 6, 7, or more.
+            while (weightElement > 4)
+            {
+                float minWeight = weightedPositions[weightIndex].w;
+                short minWeightIndex = weightIndex;
+
+                // Find our smallest weight
+                for (short ii = minWeightIndex + 1, e = weightElement + weightIndex; ii < e; ++ii)
+                {
+                    if (weightedPositions[ii].w < minWeight)
+                    {
+                        minWeightIndex = ii;
+                        minWeight = weightedPositions[ii].w;
+                    }
+                }
+
+                // Move that smallest weight to the end of the section of
+                // weights for this vertex and "pop" it off.
+                short endIndex = weightIndex + weightElement - 1;
+
+                Vec4 temp = weightedPositions[endIndex];
+                weightedPositions[endIndex] = weightedPositions[minWeightIndex];
+                weightedPositions[minWeightIndex] = temp;
+
+                unsigned char tempJointIndex = jointIndices[endIndex];
+                jointIndices[endIndex] = jointIndices[minWeightIndex];
+                jointIndices[minWeightIndex] = tempJointIndex;
+
+                --weightElement;
+
+                // Re-calculate the remaining influences
+                float reweightFactor = 1.0f / (1.0f - minWeight);
+                for (short ii = weightIndex, e = weightIndex + weightElement; ii < e; ++ii)
+                {
+                    float weight = weightedPositions[ii].w;
+                    weightedPositions[ii].w = weight * reweightFactor;
+                }
+
+                const_cast<MeshVertex *>(vertices)[i].mWeightElement = weightElement;
+            }
+        }
+    }
+
     const SkinnedMeshData *LoadMesh(const char *fileName)
     {
         using namespace bc;
@@ -126,8 +178,6 @@ namespace bg
                 vertices[ii].mWeightIndex = static_cast<short>(weightIndex);
                 vertices[ii].mWeightElement = static_cast<short>(weightElem);
             }
-            md->mVertexBuffers[i] = VertexBufferCreate(numverts, sizeof(MeshVertex), vertices);
-            marker.Reset();
 
             PARSE_INT(numtris);
             md->mNumTris[i] = numtris;
@@ -149,8 +199,6 @@ namespace bg
                 indices[writeIndex++] = static_cast<unsigned short>(i1);
                 indices[writeIndex++] = static_cast<unsigned short>(i2);
             }
-            md->mIndexBuffers[i] = IndexBufferCreate(numtris * 3, indices);
-            marker.Reset();
 
             PARSE_INT(numweights);
             Vec4 *weightedPositions = static_cast<Vec4 *>(TempAlloc(sizeof(Vec4) * numweights));
@@ -182,6 +230,13 @@ namespace bg
                 weightedPositions[ii] = weightedPosition;
                 jointIndices[ii] = static_cast<unsigned char>(jointIndex);
             }
+
+            // Ensure that vertices have at most four influences to keep the
+            // effort in our vertex shader to a minimum :)
+            ReweightVertices(vertices, numverts, weightedPositions, jointIndices);
+
+            md->mVertexBuffers[i] = VertexBufferCreate(numverts, sizeof(MeshVertex), vertices);
+            md->mIndexBuffers[i] = IndexBufferCreate(numtris * 3, indices);
             md->mWeightedPositionBuffers[i] = MeshWeightedPositionBufferCreate(numweights, weightedPositions, jointIndices);
 
             CHOMP("}");
