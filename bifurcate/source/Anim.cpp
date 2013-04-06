@@ -264,7 +264,7 @@ namespace bg
         const int numComponents = animData->mNumAnimatedComponents;
         float * const frameOneComponents = animData->mComponentFrames + numComponents * frameOneIdx;
         float * const frameTwoComponents = animData->mComponentFrames + numComponents * frameTwoIdx;
-        int * indices = animData->mComponentIndices;
+        intptr_t * indices = animData->mComponentIndices;
 
         for (int i = 0; i < numComponents; ++i)
         {
