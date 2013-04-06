@@ -60,9 +60,12 @@ namespace bc
         if (gTempHeapPtr == NULL)
             gTempHeapPtr = gTempHeap;
 
+        void *ptr = gTempHeapPtr;
+
         const size_t alignedSize = (size + 15) & ~15;
         gTempHeapPtr = gTempHeapPtr + alignedSize;
-        return gTempHeapPtr;
+
+        return ptr;
     }
 
     TempMemMarker::TempMemMarker()
