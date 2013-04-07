@@ -115,7 +115,7 @@ namespace bg
                 break;
             }
 
-            int rotationMask = jointFlags & ANIM_ROTATION_MASK;
+            const int rotationMask = jointFlags & ANIM_ROTATION_MASK;
             switch (rotationMask)
             {
             case ANIM_QX:
