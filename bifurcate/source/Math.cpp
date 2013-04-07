@@ -4,6 +4,8 @@
 #include "Core.h"
 #include "SseMath.h"
 
+#define USE_REFERENCE_SLERP 0
+
 namespace bg
 {
     Vec3 *Vec3Transform(Vec3 * __restrict out, const Vec3 * __restrict in, const Mat4x4 * __restrict matrix)
@@ -161,7 +163,6 @@ namespace bg
         assert(numElements == p0->mNumElements && numElements == p1->mNumElements);
         
         const __m128 t0 = _mm_set1_ps(t);
-        const __m128 t1 = _mm_set1_ps(1.0f - t);
 
         float *pX = this->mX;
         float *pY = this->mY;
@@ -202,10 +203,71 @@ namespace bg
         float *pQz = this->mQz;
         float *pQw = this->mQw;
 
-        const __m128 one = _mm_set1_ps(1.0f);
+#if USE_REFERENCE_SLERP
+        for (int i = 0; i < numElements; ++i)
+        {
+            float qx0 = pQx0[i];
+            float qy0 = pQy0[i];
+            float qz0 = pQz0[i];
+            float qw0 = pQw0[i];
+            float qx1 = pQx1[i];
+            float qy1 = pQy1[i];
+            float qz1 = pQz1[i];
+            float qw1 = pQw1[i];
+
+            float qx0qx1 = qx0 * qx1;
+            float qy0qy1 = qy0 * qy1;
+            float qz0qz1 = qz0 * qz1;
+            float qw0qw1 = qw0 * qw1;
+            float cosOmega = qx0qx1 + qy0qy1 + qz0qz1 + qw0qw1;
+
+            float lhsx;
+            float lhsy;
+            float lhsz;
+            float lhsw;
+
+            if (cosOmega < 0.0f)
+            {
+                cosOmega = -cosAngle;
+                lhsx = -qx0;
+                lhsy = -qy0;
+                lhsz = -qz0;
+                lhsw = -qw0;
+            }
+            else
+            {
+                lhsx = qx0;
+                lhsy = qy0;
+                lhsz = qz0;
+                lhsw = qw0;
+            }
+
+            float scale0;
+            float scale1;
+
+            if (cosOmega < 0.999f)
+            {
+                float angle = acosf(cosOmega);
+                float recipSinAngle = 1.0f / sinf(angle);
+                scale0 = sinf(((1.0f - t) * angle)) * recipSinAngle;
+                scale1 = sinf((t * angle)) * recipSinAngle;
+            }
+            else
+            {
+                scale0 = 1.0f - t;
+                scale1 = t;
+            }
+
+            pQx[i] = lhsx * scale0 + qx1 * scale1;
+            pQy[i] = lhsy * scale0 + qy1 * scale1;
+            pQz[i] = lhsz * scale0 + qz1 * scale1;
+            pQw[i] = lhsw * scale0 + qw1 * scale1;
+        }
+#else
+        const __m128 t1 = _mm_set1_ps(1.0f - t);
         const __m128 zero = _mm_setzero_ps();
         const __m128 negOneBit = _mm_castsi128_ps(_mm_set1_epi32(0x80000000ul));
-        const __m128 small = _mm_set1_ps(1e-6f);
+        const __m128 nearOne = _mm_set1_ps(0.999f);
         for (int i = 0; i < numElements; i += SIMD_SIZE)
         {
             const __m128 qx0 = _mm_load_ps(pQx0 + i);
@@ -224,14 +286,13 @@ namespace bg
 
             __m128 cosOmega = _mm_add_ps(_mm_add_ps(_mm_add_ps(qx0qx1, qy0qy1), qz0qz1), qw0qw1);
             const __m128 mask = _mm_cmplt_ps(cosOmega, zero);
-            const __m128 toX = _mm_sel_ps(qx1, _mm_or_ps(qx1, negOneBit), mask);
-            const __m128 toY = _mm_sel_ps(qy1, _mm_or_ps(qy1, negOneBit), mask);
-            const __m128 toZ = _mm_sel_ps(qz1, _mm_or_ps(qz1, negOneBit), mask);
-            const __m128 toW = _mm_sel_ps(qw1, _mm_or_ps(qw1, negOneBit), mask);
-            cosOmega = _mm_sel_ps(cosOmega, _mm_or_ps(cosOmega, negOneBit), mask);
+            const __m128 toX = _mm_sel_ps(qx1, _mm_andnot_ps(qx1, negOneBit), mask);
+            const __m128 toY = _mm_sel_ps(qy1, _mm_andnot_ps(qy1, negOneBit), mask);
+            const __m128 toZ = _mm_sel_ps(qz1, _mm_andnot_ps(qz1, negOneBit), mask);
+            const __m128 toW = _mm_sel_ps(qw1, _mm_andnot_ps(qw1, negOneBit), mask);
+            cosOmega = _mm_sel_ps(cosOmega, _mm_andnot_ps(cosOmega, negOneBit), mask);
 
-            const __m128 oneMinusCosOmega = _mm_sub_ps(one, cosOmega);
-            const __m128 closeToOneMask = _mm_cmpgt_ps(oneMinusCosOmega, small);
+            const __m128 closeToOneMask = _mm_cmplt_ps(cosOmega, nearOne);
 
             const __m128 omega = _mm_acos_ps(cosOmega);
             const __m128 invSinOmega = _mm_rcp_ps(_mm_sin_ps(omega));
@@ -240,7 +301,7 @@ namespace bg
 
             const __m128 t0b = t1;
             const __m128 t1b = t0;
-           
+
             const __m128 t0 = _mm_sel_ps(t0b, t0a, closeToOneMask);
             const __m128 t1 = _mm_sel_ps(t1b, t1a, closeToOneMask);
 
@@ -254,6 +315,7 @@ namespace bg
             _mm_store_ps(pQz + i, z);
             _mm_store_ps(pQw + i, w);
         }
+#endif
     }
 
     void SoaQuatPos::ConvertToMat4x4(Mat4x4 *matrices) const
