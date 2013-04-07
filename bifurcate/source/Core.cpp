@@ -440,6 +440,22 @@ namespace bc
         return gFrequency;
     }
 
+    void Report(const char *format, ...)
+    {
+        char errorBuf[1024];
+
+        va_list args;
+        va_start(args, format);
+        vsnprintf(errorBuf, sizeof errorBuf, format, args);
+        va_end(args);
+
+        errorBuf[1023] = 0;
+
+        OutputDebugString(errorBuf);
+        OutputDebugString("\n");
+        puts(errorBuf);
+    }
+
     void ReportError(const char *file, int line, const char *errorFormat, ...)
     {
         char errorBuf[1024];

@@ -149,6 +149,7 @@ namespace bc
     uint64_t GetFrameTicks();
     uint64_t GetFrequency();
 
+    void Report(const char *format, ...);
     void ReportError(const char *file, int line, const char *errorFormat, ...);
 
 #ifndef NDEBUG
