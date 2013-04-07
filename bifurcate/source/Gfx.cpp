@@ -217,7 +217,7 @@ static ID3D11InputLayout *gDebugInputLayout;
 
         /// DEBUG VERTEX SHADER ONLY
         {
-            bc::AutoMemMap debugVertexShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Debug.vsh.o");
+            bc::AutoMemMap debugVertexShader("z:/src/bifurcate/bifurcate/assets/Debug.vsh.o");
             if (!debugVertexShader.Valid())
                 SignalErrorAndReturn(false, "Unable to map vertex shader.");
 
@@ -234,7 +234,7 @@ static ID3D11InputLayout *gDebugInputLayout;
         /// END DEBUG VERTEX SHADER ONLY
 
         {
-            bc::AutoMemMap vertexShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Skinned.vsh.o");
+            bc::AutoMemMap vertexShader("z:/src/bifurcate/bifurcate/assets/Skinned.vsh.o");
             if (!vertexShader.Valid())
                 SignalErrorAndReturn(false, "Unable to map vertex shader.");
 
@@ -246,7 +246,7 @@ static ID3D11InputLayout *gDebugInputLayout;
         }
 
         {
-            bc::AutoMemMap pixelShader("C:/Users/max/opt/bifurcate/bifurcate/assets/Skinned.fsh.o");
+            bc::AutoMemMap pixelShader("z:/src/bifurcate/bifurcate/assets/Skinned.fsh.o");
             if (!pixelShader.Valid())
                 SignalErrorAndReturn(false, "Unable to map vertex shader.");
 
@@ -463,7 +463,7 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         ID3D11Buffer *vertexBuffer = NULL;
         ID3D11Buffer *indexBuffer = NULL;
         D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = static_cast<UINT>(numJoints - 1) * sizeof(float) * 3;
+        desc.ByteWidth = static_cast<UINT>(numJoints - 1) * sizeof(float) * 3 * 2;
         desc.Usage = D3D11_USAGE_DYNAMIC;
         desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -587,10 +587,12 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         int numJoints = animData->mNumJoints;
         const AnimJoint *joints = animData->mJoints;
 
+        memcpy(poseMatrices, rawMatrices, numJoints * sizeof(Mat4x4));
+
         for (int i = 1; i < numJoints; ++i)
         {
             int parent = joints[i].mParentIndex;
-            Mat4x4Multiply(poseMatrices + i, rawMatrices + i, rawMatrices + parent);
+            Mat4x4Multiply(poseMatrices + i, poseMatrices + i, poseMatrices + parent);
         }
     }
 
@@ -606,10 +608,7 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         Mat4x4 *matrices =  static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
         poseData->ConvertToMat4x4(rawMatrices);
         TransformJoints(poseMatrices, rawMatrices, animData);
-        MultiplyInverseBindPose(matrices, numJoints, poseMatrices, meshData->mInverseBindPose);
-        // TODO: DEBUG
-        // Let's see what happens when we use an identity transformation matrix.
-        //MultiplyInverseBindPose(matrices, numJoints, meshData->mBindPose, meshData->mInverseBindPose);
+        MultiplyInverseBindPose(matrices, numJoints, meshData->mInverseBindPose, poseMatrices);
         UploadMatrices(matrices, numJoints);
 
         gContext->VSSetShader(gSkinnedVertexShader, NULL, 0);
