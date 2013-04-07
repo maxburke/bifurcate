@@ -266,7 +266,7 @@ namespace bg
 #else
         const __m128 t1 = _mm_set1_ps(1.0f - t);
         const __m128 zero = _mm_setzero_ps();
-        const __m128 negOneBit = _mm_castsi128_ps(_mm_set1_epi32(0x80000000ul));
+        const __m128 negOneBit = _mm_castsi128_ps(_mm_set1_epi32(0x7ffffffful));
         const __m128 nearOne = _mm_set1_ps(0.999f);
         for (int i = 0; i < numElements; i += SIMD_SIZE)
         {
@@ -286,11 +286,11 @@ namespace bg
 
             __m128 cosOmega = _mm_add_ps(_mm_add_ps(_mm_add_ps(qx0qx1, qy0qy1), qz0qz1), qw0qw1);
             const __m128 mask = _mm_cmplt_ps(cosOmega, zero);
-            const __m128 toX = _mm_sel_ps(qx1, _mm_andnot_ps(qx1, negOneBit), mask);
-            const __m128 toY = _mm_sel_ps(qy1, _mm_andnot_ps(qy1, negOneBit), mask);
-            const __m128 toZ = _mm_sel_ps(qz1, _mm_andnot_ps(qz1, negOneBit), mask);
-            const __m128 toW = _mm_sel_ps(qw1, _mm_andnot_ps(qw1, negOneBit), mask);
-            cosOmega = _mm_sel_ps(cosOmega, _mm_andnot_ps(cosOmega, negOneBit), mask);
+            const __m128 toX = _mm_sel_ps(qx1, _mm_and_ps(qx1, negOneBit), mask);
+            const __m128 toY = _mm_sel_ps(qy1, _mm_and_ps(qy1, negOneBit), mask);
+            const __m128 toZ = _mm_sel_ps(qz1, _mm_and_ps(qz1, negOneBit), mask);
+            const __m128 toW = _mm_sel_ps(qw1, _mm_and_ps(qw1, negOneBit), mask);
+            cosOmega = _mm_sel_ps(cosOmega, _mm_and_ps(cosOmega, negOneBit), mask);
 
             const __m128 closeToOneMask = _mm_cmplt_ps(cosOmega, nearOne);
 
