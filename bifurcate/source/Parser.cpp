@@ -6,7 +6,7 @@
 
 namespace bx
 {
-    static const char *consume_whitespace(const char *start, const char *end)
+    static const char *ConsumeWhitespace(const char *start, const char *end)
     {
         while ((start < end) && isspace(*start))
             ++start;
@@ -14,7 +14,7 @@ namespace bx
         return start;
     }
 
-    static const char *consume_comment(const char *start, const char *end)
+    static const char *ConsumeComment(const char *start, const char *end)
     {
         assert(start[0] == '/' && start[1] == '*');
         assert(start + 2 < end);
@@ -26,7 +26,7 @@ namespace bx
         return start + 2;
     }
 
-    enum token_type
+    enum TokenType
     {
         kTokenTypeInvalid,
         kTokenTypeSymbol,
@@ -38,31 +38,31 @@ namespace bx
         kTokenTypeNumber
     };
     
-    struct token
+    struct Token
     {
-        token_type mTokenType;
+        TokenType mTokenType;
         const char *mBegin;
         const char *mEnd;
     };
 
-    static token next_token(const char *start, const char * const end)
+    static Token NextToken(const char *start, const char * const end)
     {
-        token invalidtoken = { kTokenTypeInvalid, NULL, NULL };
+        Token invalidtoken = { kTokenTypeInvalid, NULL, NULL };
 
-        token currentToken = {};
+        Token currentToken = {};
 #define VALIDATE_BOUNDS(START, END) if (START >= END) { return invalidtoken; } else (void)0
 
-        start = consume_whitespace(start, end);
+        start = ConsumeWhitespace(start, end);
         VALIDATE_BOUNDS(start, end);
 
         if (start[0] == '/' && start[1] == '*')
-            start = consume_whitespace(consume_comment(start, end), end);
+            start = ConsumeWhitespace(ConsumeComment(start, end), end);
 
         if (start[0] == '/' && start[1] == '/')
         {
             while (*start++ != '\n')
                 ;
-            start = consume_whitespace(start, end);
+            start = ConsumeWhitespace(start, end);
         }
         VALIDATE_BOUNDS(start, end);
 
@@ -85,7 +85,7 @@ namespace bx
         const char *blockDelimiters = "{}()";
         if (const char *delimiterPtr = strchr(blockDelimiters, startChar))
         {
-            const token_type delimiterTypes[] = { kTokenTypeBlockBegin, kTokenTypeBlockEnd, kTokenTypeTupleBegin, kTokenTypeTupleEnd };
+            const TokenType delimiterTypes[] = { kTokenTypeBlockBegin, kTokenTypeBlockEnd, kTokenTypeTupleBegin, kTokenTypeTupleEnd };
             int delimiterIdx = delimiterPtr - blockDelimiters;
             currentToken.mEnd = start + 1;
             currentToken.mTokenType = delimiterTypes[delimiterIdx];
@@ -131,14 +131,14 @@ namespace bx
 
     bool Parser::ExpectAndDiscard(const char *string)
     {
-        token t = next_token(mCursor, mStreamEnd);
+        Token t = NextToken(mCursor, mStreamEnd);
         mCursor = t.mEnd;
         return string_equal(t.mBegin, string);
     }
 
     ParsedInt Parser::ParseInt()
     {
-        token t = next_token(mCursor, mStreamEnd);
+        Token t = NextToken(mCursor, mStreamEnd);
         mCursor = t.mEnd;
 
         if (t.mTokenType == kTokenTypeNumber)
@@ -149,7 +149,7 @@ namespace bx
 
     ParsedString Parser::ParseString()
     {
-        token t = next_token(mCursor, mStreamEnd);
+        Token t = NextToken(mCursor, mStreamEnd);
         mCursor = t.mEnd;
 
         if (t.mTokenType == kTokenTypeString)
@@ -160,7 +160,7 @@ namespace bx
 
     ParsedFloat Parser::ParseFloat()
     {
-        token t = next_token(mCursor, mStreamEnd);
+        Token t = NextToken(mCursor, mStreamEnd);
         mCursor = t.mEnd;
 
         if (t.mTokenType == kTokenTypeNumber)
