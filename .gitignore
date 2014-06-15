@@ -11,4 +11,7 @@
 *.dll
 *.xnb
 *.swp
-
+*.*sdf
+*.o
+*.filters
+*.ipch
