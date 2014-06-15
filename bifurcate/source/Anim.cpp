@@ -275,8 +275,7 @@ namespace bg
             frameTwoBase[index] = f2;
         }
 
-        // TODO: Is this necessary? We only ever unpack quaternion x, y, z components, leaving W.
-        //interpolated->UncompressQw();
+        interpolated->UncompressQw();
         interpolated->Interpolate(&frameOne, &frameTwo, lerp);
     }
 }
