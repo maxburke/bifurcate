@@ -275,7 +275,11 @@ namespace bg
             frameTwoBase[index] = f2;
         }
 
-        interpolated->UncompressQw();
+        // Only quaternion x/y/z components are unpacked, the w component
+        // needs to be (re-)derived from these new values.
+        frameOne.UncompressQw();
+        frameTwo.UncompressQw();
+
         interpolated->Interpolate(&frameOne, &frameTwo, lerp);
     }
 }
