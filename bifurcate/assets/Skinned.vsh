@@ -28,17 +28,17 @@ struct vs_output
 vs_output main(in vs_input input) {
     vs_output o;
     o.uv = input.uv;
+    
     float4 position = float4(0, 0, 0, 1);
     for (uint i = input.firstWeight, e = input.firstWeight + input.numWeights; i < e; ++i)
     {
         float4 weightedPosition = gWeightedPositions.Load(i);
         uint jointIndex = gJointIndices.Load(i);
         float4x4 mat = gMatrices[jointIndex];
-        float weight = weightedPosition.w;
-        position += weight * mul(float4(weightedPosition.xyz, 1), mat);
+        position += mul(weightedPosition, transpose(mat));
     }
 
-    o.position = mul(float4(position.xyz, 1), transpose(gViewProjection));
+    o.position = mul(gViewProjection, float4(position.xyz, 1));
     return o;
 }
 
