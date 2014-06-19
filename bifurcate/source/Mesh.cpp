@@ -226,7 +226,7 @@ namespace bg
                 if (jointIndex >= bg::MAX_NUM_JOINTS)
                     SignalErrorAndReturn(NULL, "Too many joints for model, max number of supported joints is %d.", bg::MAX_NUM_JOINTS);
 
-                Vec4 weightedPosition = { x, y, z, weight };
+                Vec4 weightedPosition = { x * weight, y * weight, z * weight, weight };
                 weightedPositions[ii] = weightedPosition;
                 jointIndices[ii] = static_cast<unsigned char>(jointIndex);
             }

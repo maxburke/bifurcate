@@ -34,13 +34,13 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     RunTests();
 
     //bx::load_map("z:/doom3data/maps/game/recycling1.proc");
-    const bg::AnimData *ad = bg::LoadAnim("z:/doom3data/models/md5/monsters/cyberdemon/walk3.md5anim");
-    const bg::SkinnedMeshData *md = bg::LoadMesh("z:/doom3data/models/md5/monsters/cyberdemon/cyberdemon.md5mesh");
+    const bg::AnimData *ad = bg::LoadAnim("z:/doom3data/models/md5/monsters/hellknight/range_attack2.md5anim");
+    const bg::SkinnedMeshData *md = bg::LoadMesh("z:/doom3data/models/md5/monsters/hellknight/hellknight.md5mesh");
 
     MSG msg;
 
     int mFrame0 = 0;
-    int mFrame1 = 0;
+    int mFrame1 = 1;
     float mCurrentLerpFactor = 0;
 
 #define WRAP(X, MIN, MAX) (((X)>=(MAX))?(MIN):(X))
@@ -49,6 +49,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
     void *memory = AllocaAligned(SIMD_ALIGNMENT, bg::SoaQuatPos::MemorySize(elements));
 
     bool applicationDone = false;
+    bc::UpdateFrameTime();
+
     while (!applicationDone)
     {
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -76,7 +78,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdline, 
             int numFramesPerAnimation = ad->mNumFrames;
             int frame0 = mFrame0;
             int frame1 = mFrame1;
-            float lerpFactor = static_cast<float>(bc::GetFrameTicks()) * ad->mInvClockTicksPerFrame;
+            uint64_t frameTicks = bc::GetFrameTicks();
+            float lerpFactor = static_cast<float>(frameTicks) * ad->mInvClockTicksPerFrame;
             float currentLerpFactor = mCurrentLerpFactor + lerpFactor;
 
             while (currentLerpFactor > 1.0f)

@@ -437,10 +437,6 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         return px;
     }
 
-#define USE_DEBUG_SKELETON_RENDER 1
-#define USE_DEBUG_QUAD_DRAW 0
-#if USE_DEBUG_SKELETON_RENDER
-
     static void TransformJoints(Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict rawMatrices, const AnimData *animData)
     {
         int numJoints = animData->mNumJoints;
@@ -451,10 +447,14 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         for (int i = 1; i < numJoints; ++i)
         {
             int parent = joints[i].mParentIndex;
-            //Mat4x4 pose(poseMatrices[i]);
             Mat4x4Multiply(poseMatrices + i, poseMatrices + i, poseMatrices + parent);
         }
     }
+
+#define USE_DEBUG_SKELETON_RENDER 0
+#define USE_DEBUG_QUAD_DRAW 0
+
+#if USE_DEBUG_SKELETON_RENDER
 
     void DrawSkinnedMesh(const SkinnedMeshData *, const AnimData *animData, const SoaQuatPos *poseData)
     {
@@ -484,9 +484,6 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
 
         TransformJoints(poseMatrices, rawMatrices, animData);
 
-        // TODO: You might need to flip the order of this multiplication, try inverseBindPose * poseMatrices instead!!
-//        MultiplyInverseBindPose(matrices, numJoints, meshData->mInverseBindPose, poseMatrices);
-
         const AnimJoint *joints = animData->mJoints;
         size_t positionBufferSize = numIndices * 3 * sizeof(float);
         float *positionBuffer = static_cast<float *>(AllocaAligned(16, positionBufferSize));
@@ -498,11 +495,11 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         {
             int parent = joints[i].mParentIndex;
             positionBuffer[positionIndex++] = mat[parent].v[12];
-            positionBuffer[positionIndex++] = mat[parent].v[13];
             positionBuffer[positionIndex++] = mat[parent].v[14];
+            positionBuffer[positionIndex++] = mat[parent].v[13];
             positionBuffer[positionIndex++] = mat[i].v[12];
-            positionBuffer[positionIndex++] = mat[i].v[13];
             positionBuffer[positionIndex++] = mat[i].v[14];
+            positionBuffer[positionIndex++] = mat[i].v[13];
         }
 
         D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -582,20 +579,6 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         gContext->VSSetConstantBuffers(0, sizeof vsBuffers / sizeof vsBuffers[0], vsBuffers);
     }
 
-    static void TransformJoints(Mat4x4 * __restrict poseMatrices, const Mat4x4 * __restrict rawMatrices, const AnimData *animData)
-    {
-        int numJoints = animData->mNumJoints;
-        const AnimJoint *joints = animData->mJoints;
-
-        memcpy(poseMatrices, rawMatrices, numJoints * sizeof(Mat4x4));
-
-        for (int i = 1; i < numJoints; ++i)
-        {
-            int parent = joints[i].mParentIndex;
-            Mat4x4Multiply(poseMatrices + i, poseMatrices + i, poseMatrices + parent);
-        }
-    }
-
     void DrawSkinnedMesh(const SkinnedMeshData *meshData, const AnimData *animData, const SoaQuatPos *poseData)
     {
         int *numTris = meshData->mNumTris;
@@ -605,11 +588,10 @@ Mat4x4Multiply(static_cast<Mat4x4 *>(mappedResource.pData), &viewMatrix, &gProjM
         size_t matricesAllocSize = sizeof(Mat4x4) * numJoints;
         Mat4x4 *poseMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
         Mat4x4 *rawMatrices = static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
-        Mat4x4 *matrices =  static_cast<Mat4x4 *>(AllocaAligned(16, matricesAllocSize));
+
         poseData->ConvertToMat4x4(rawMatrices);
         TransformJoints(poseMatrices, rawMatrices, animData);
-        MultiplyInverseBindPose(matrices, numJoints, meshData->mInverseBindPose, poseMatrices);
-        UploadMatrices(matrices, numJoints);
+        UploadMatrices(poseMatrices, numJoints);
 
         gContext->VSSetShader(gSkinnedVertexShader, NULL, 0);
         gContext->PSSetShader(gDebugMaterial, NULL, 0);
