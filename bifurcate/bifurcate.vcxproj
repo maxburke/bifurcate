@@ -54,7 +54,7 @@
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86\d3d11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86\d3d11.lib;C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86\dinput8.lib;C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x86\dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -76,6 +76,7 @@
     </ClCompile>
     <ClCompile Include="source\Camera.cpp" />
     <ClCompile Include="source\Component.cpp" />
+    <ClCompile Include="source\Controller.cpp" />
     <ClCompile Include="source\Core.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
@@ -107,6 +108,7 @@
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Component.h" />
     <ClInclude Include="include\Config.h" />
+    <ClInclude Include="include\Controller.h" />
     <ClInclude Include="include\Core.h" />
     <ClInclude Include="include\Gfx.h" />
     <ClInclude Include="include\Map.h" />
