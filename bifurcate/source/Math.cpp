@@ -328,17 +328,13 @@ namespace bg
         float *pY = this->mY;
         float *pZ = this->mZ;
 
-        Mat4x4 rotation;
-        Mat4x4 translation;
-        rotation.SetIdentity();
-        translation.SetIdentity();
-
         for (int i = 0, e = this->mNumElements; i < e; ++i, ++matrices)
         {
             float qx = pQx[i];
             float qy = pQy[i];
             float qz = pQz[i];
             float qw = pQw[i];
+
             float x = pX[i];
             float y = pY[i];
             float z = pZ[i];
@@ -355,23 +351,25 @@ namespace bg
             float qzqz = qz * qz;
             float qzqw = qz * qw;
 
-            rotation.v[0] = 1.0f - 2.0f * (qyqy + qzqz);
-            rotation.v[1] =        2.0f * (qxqy - qzqw);
-            rotation.v[2] =        2.0f * (qxqz + qyqw);
+            matrices->v[0] = 1.0f - 2.0f * (qyqy + qzqz);
+            matrices->v[1] =        2.0f * (qxqy - qzqw);
+            matrices->v[2] =        2.0f * (qxqz + qyqw);
+            matrices->v[3] = 0;
 
-            rotation.v[4] =        2.0f * (qxqy + qzqw);
-            rotation.v[5] = 1.0f - 2.0f * (qxqx + qzqz);
-            rotation.v[6] =        2.0f * (qyqz - qxqw);
-            
-            rotation.v[8] =        2.0f * (qxqz - qyqw);
-            rotation.v[9] =        2.0f * (qyqz + qxqw);
-            rotation.v[10] = 1.0f - 2.0f * (qxqx + qyqy);
+            matrices->v[4] =        2.0f * (qxqy + qzqw);
+            matrices->v[5] = 1.0f - 2.0f * (qxqx + qzqz);
+            matrices->v[6] =        2.0f * (qyqz - qxqw);
+            matrices->v[7] = 0;
 
-            translation.v[12] = x;
-            translation.v[13] = y;
-            translation.v[14] = z;
+            matrices->v[8] =        2.0f * (qxqz - qyqw);
+            matrices->v[9] =        2.0f * (qyqz + qxqw);
+            matrices->v[10] = 1.0f - 2.0f * (qxqx + qyqy);
+            matrices->v[11] = 0;
 
-            Mat4x4Multiply(matrices, &rotation, &translation);
+            matrices->v[12] = x;
+            matrices->v[13] = y;
+            matrices->v[14] = z;
+            matrices->v[15] = 1;
         }
     }
 
