@@ -21,7 +21,7 @@ namespace bg
         md->mInverseBindPose = invBindPoseArray;
     }
 
-    static void ReweightVertices(const MeshVertex *vertices, int numverts, Vec4 *weightedPositions, unsigned char *jointIndices)
+    /* static */ void ReweightVertices(const MeshVertex *vertices, int numverts, Vec4 *weightedPositions, unsigned char *jointIndices)
     {
         for (int i = 0; i < numverts; ++i)
         {
@@ -181,7 +181,7 @@ namespace bg
 
             PARSE_INT(numtris);
             md->mNumTris[i] = numtris;
-            unsigned short *indices = static_cast<unsigned short *>(TempAlloc(sizeof(unsigned short) * numtris));
+            unsigned short *indices = static_cast<unsigned short *>(TempAlloc(sizeof(unsigned short) * numtris * 3));
             for (int ii = 0, writeIndex = 0, ee = numtris; ii < ee; ++ii)
             {
                 CHOMP("tri");
@@ -233,7 +233,8 @@ namespace bg
 
             // Ensure that vertices have at most four influences to keep the
             // effort in our vertex shader to a minimum :)
-            ReweightVertices(vertices, numverts, weightedPositions, jointIndices);
+            // TODO: Re-enable vertex re-weighting 2014/06/18
+            //ReweightVertices(vertices, numverts, weightedPositions, jointIndices);
 
             md->mVertexBuffers[i] = VertexBufferCreate(numverts, sizeof(MeshVertex), vertices);
             md->mIndexBuffers[i] = IndexBufferCreate(numtris * 3, indices);
